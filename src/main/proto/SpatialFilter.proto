@@ -1,0 +1,11 @@
+option java_package = "tman.filters.generated";
+option java_outer_classname = "SpatialFilter";
+option java_generic_services = true;
+option java_generate_equals_and_hash = true;
+option optimize_for = SPEED;
+
+message SpatialFilterMesg {
+  required string geomWKT = 1;
+  required string compressType = 2;
+  optional string type = 3;
+}
