@@ -1,0 +1,53 @@
+package client;
+
+import com.esri.core.geometry.Envelope;
+
+public class Constants {
+    /**
+     * 全局统一的空间边界配置
+     * 格式: Envelope(xmin, ymin, xmax, ymax)
+     * 值: (115.29, 39.00, 117.83, 41.50)
+     */
+    public static Envelope DEFAULT_ENVELOPE = new Envelope(115.29, 39.00, 117.83, 41.50);
+    public static String META = "meta_";
+    public static String PIVOT = "fa_pivot_";
+    public static String DEFAULT_CF = "cf";
+    public static String O_ID = "oid";
+
+    public static String T_ID = "tid";
+    public static String GEOM = "f_traj";
+    public static String GEOM_X = "f_traj_X";
+    public static String GEOM_Y = "f_traj_Y";
+    public static String GEOM_Z = "f_traj_Z";
+    public static String START_POINT = META + "start_point";
+    public static String END_POINT = META + "end_point";
+    public static String START_TIME = META + "start_time";
+    public static String END_TIME = META + "end_time";
+
+    public static String PIVOT_MBR = PIVOT + "mbr_point";
+    public static String PIVOT_POINT = PIVOT + "index_point";
+    public static Short DEFAULT_G = 16;
+
+    public static String META_TABLE = "_meta";
+    public static String META_TABLE_ROWKEY = "meta";
+    public static String META_TABLE_SHARDS = "meta";
+    public static String META_TABLE_PRIMARY = "primary_index";
+    public static String META_TABLE_ALPHA = "alpha";
+    public static String META_TABLE_RESOLUTION = "resolution";
+    public static String META_TABLE_BETA = "beta";
+    public static String META_TABLE_TIME_BIN = "time_bin";
+    public static String META_TABLE_IS_XZ = "is_xz";
+    public static String META_TABLE_IS_TSP_ENCODING = "is_tsp_encoding";
+    public static String META_TABLE_IS_RL_ENCODING = "is_rl_encoding";
+    public static String META_TABLE_ADAPTIVE_PARTITION = "adaptive_partition";
+    public static String META_TABLE_MAX_SHAPE_BITS = "max_shape_bits";
+    public static String META_REDIS = "redis";
+    public static String META_TABLE_TIME_BIN_NUMS = "time_bin_nums";
+    public static String META_TABLE_TIME_PERIOD = "time_period";
+    public static String META_TABLE_compression = "compression";
+    public static String META_TABLE_xmin = "x_min";
+    public static String META_TABLE_xmax = "x_max";
+    public static String META_TABLE_ymin = "y_min";
+    public static String META_TABLE_ymax = "y_max";
+    public static String STAT_TABLE = "_stat";
+}
