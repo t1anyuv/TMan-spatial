@@ -1,0 +1,40 @@
+# ============================================================
+# Dataset Configuration
+# ============================================================
+
+tdrive:
+  name: T-Drive
+  description: >
+    Beijing taxi GPS trajectories. ~318,774 pre-segmented trajectory
+    segments. Used as the default single-node experiment dataset.
+  raw_path: data/raw/tdrive
+  processed_path: data/processed/tdrive
+  num_segments: 318774
+  bbox:
+    lon_min: 116.10
+    lon_max: 116.70
+    lat_min: 39.75
+    lat_max: 40.18
+  source: https://www.microsoft.com/en-us/research/publication/t-drive-trajectory-data-sample/
+
+cdtaxi:
+  name: CD-Taxi
+  description: >
+    Chengdu taxi GPS trajectories. 2940 taxis over 10 days.
+    ~48,223 pre-segmented trajectory segments.
+    Used as the default distributed experiment dataset.
+  raw_path: data/raw/cdtaxi
+  processed_path: data/processed/cdtaxi
+  num_segments: 48223
+  bbox:
+    lon_min: 103.92
+    lon_max: 104.20
+    lat_min: 30.52
+    lat_max: 30.78
+
+query_window:
+  description: >
+    Synthetic query windows generated from the dataset bounding box,
+    using the specified spatial distribution (UNI / SKE / GUS).
+    100 query windows per distribution per range setting.
+  per_range: 100

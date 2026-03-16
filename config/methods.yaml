@@ -1,0 +1,113 @@
+# ============================================================
+# Method Configuration
+# ============================================================
+
+leti:
+  name: LETI
+  label: "LETI (ours)"
+  type: ours
+  description: >
+    Learned Efficient Trajectory Index. Uses RLSFC (Reinforcement
+    Learning-guided Space-Filling Curve) with adaptive space-unit
+    partitioning. Automatically tunes resolution, alpha, beta, minTrajs.
+  module: methods.leti.leti_index
+  class: LETIIndex
+  default_params:
+    curve_type: RLSFC
+    adaptive: true
+
+leti_lmsfc:
+  name: "LETI (LMSFC)"
+  label: "LETI (LMSFC)"
+  type: ablation
+  description: >
+    Ablation: replace RLSFC with LMSFC curve.
+  module: methods.leti.leti_index
+  class: LETIIndex
+  default_params:
+    curve_type: LMSFC
+    adaptive: true
+
+leti_lbmt:
+  name: "LETI (LBMT)"
+  label: "LETI (LBMT)"
+  type: ablation
+  description: >
+    Ablation: replace RLSFC with LBMT curve.
+  module: methods.leti.leti_index
+  class: LETIIndex
+  default_params:
+    curve_type: LBMT
+    adaptive: true
+
+leti_fixed:
+  name: "LETI -ab"
+  label: "LETI -ab"
+  type: ablation
+  description: >
+    Ablation: disable adaptive parameter tuning, use fixed parameters.
+  module: methods.leti.leti_index
+  class: LETIIndex
+  default_params:
+    curve_type: RLSFC
+    adaptive: false
+
+tshape:
+  name: TShape
+  label: "TShape (TMan)"
+  type: baseline
+  runtime: java
+  jar: experiments/jars/TMan.jar
+  description: >
+    TMan baseline. XZ-Ordering with fixed minimum space-unit subdivision
+    optimization. All comparative experiments run on top of the
+    TMan-spatial framework provided by TMan.jar.
+  module: methods.baselines.tshape
+  class: TShapeIndex
+  default_params: {}
+
+xzstar:
+  name: "XZ*"
+  label: "XZ* (Trass)"
+  type: baseline
+  runtime: java
+  jar: experiments/jars/TMan.jar    # XZ* is bundled inside TMan.jar (--method xzstar)
+  description: >
+    Trass baseline. XZ-Ordering with 2×2 space-unit subdivision.
+    Invoked through TMan.jar with --method xzstar.
+  module: methods.baselines.xzstar
+  class: XZStarIndex
+  default_params:
+    grid: [2, 2]
+
+lmsfc:
+  name: LMSFC
+  label: "LMSFC (VLDB 2023)"
+  type: baseline
+  runtime: java
+  jar: experiments/jars/LMSFC.jar
+  description: >
+    SMBO-optimized Learned Space-Filling Curve. VLDB 2023.
+    Runs on TMan-spatial infrastructure.
+  module: methods.baselines.lmsfc
+  class: LMSFCIndex
+  source: https://github.com/Cyan9061/LMSFC-Algorithm-Replication
+  default_params: {}
+
+bmtree:
+  name: BMTree
+  label: "BMTree (2025)"
+  type: baseline
+  runtime: java
+  jar: experiments/jars/BMTree.jar
+  description: >
+    BMTree structure with LSFC parameter optimization. 2025.
+    Runs on TMan-spatial infrastructure.
+  module: methods.baselines.bmtree
+  class: BMTreeIndex
+  source: https://github.com/gravesprite/Learned-BMTree
+  default_params: {}
+
+# Ordered method list used for table columns and legend ordering
+comparison_methods: [leti, tshape, xzstar, lmsfc, bmtree]
+ablation_methods:   [leti, leti_lmsfc, leti_lbmt, leti_fixed]
