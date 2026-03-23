@@ -45,14 +45,15 @@ public class CountPlanner extends QueryPlanner {
      * 使用 FirstKeyOnlyFilter 优化，只读取 RowKey 而不读取数据列，
      * 从而大幅提升计数查询的性能。
      * 
-     * @return Tuple2<RowKey范围数量, 结果扫描器> 结果扫描器仅用于计数
+     * @return Tuple2<逻辑 IndexRange 条数, 结果扫描器> 结果扫描器仅用于计数
      */
     @Override
     public Tuple2<Integer, ResultScanner> execute() {
         RBO();
         CBO();
-        List<MultiRowRangeFilter.RowRange> rowRanges = getKeyRanges();
-        
+        QueryPlanner.IndexRangeResult indexResult = getKeyRangesWithIndexCount();
+        List<MultiRowRangeFilter.RowRange> rowRanges = indexResult.rowRanges;
+
         if (rowRanges.isEmpty()) {
             return null;
         }
@@ -72,7 +73,7 @@ public class CountPlanner extends QueryPlanner {
         } catch (IOException e) {
             System.err.println("[CountPlanner] Error executing count query: " + e.getMessage());
         }
-        return new Tuple2<>(rowRanges.size(), resultScanner);
+        return new Tuple2<>(indexResult.ranges.size(), resultScanner);
     }
 
     /**
@@ -82,10 +83,9 @@ public class CountPlanner extends QueryPlanner {
     protected List<MultiRowRangeFilter.RowRange> getKeysByPrimaryIndex(Filter primaryFilter) {
         long time = System.currentTimeMillis();
         IndexRangeResult result = getKeysByPrimaryIndexCore(primaryFilter);
-        System.out.println("[CountPlanner] index time: " + (System.currentTimeMillis() - time));
-        // 对于 SpatioTemporalFilter，ranges 为空，使用 rowRanges.size()
-        int rangeSize = result.ranges.isEmpty() ? result.rowRanges.size() : result.ranges.size();
-        System.out.println("[CountPlanner] index range size: " + rangeSize);
+        System.out.println("[CountPlanner] compute row key time: " + (System.currentTimeMillis() - time));
+        int rangeSize = result.ranges.size();
+        System.out.println("[CountPlanner] logical index range size: " + rangeSize);
         return result.rowRanges;
     }
 
@@ -97,7 +97,7 @@ public class CountPlanner extends QueryPlanner {
         long time = System.currentTimeMillis();
         IndexRangeResult result = getKeysBySecondaryIndexCore(secondaryFilter);
         System.out.println("[CountPlanner] index time: " + (System.currentTimeMillis() - time));
-        System.out.println("[CountPlanner] index range size: " + result.rowRanges.size());
+        System.out.println("[CountPlanner] logical index range size: " + result.ranges.size() + ", row range count: " + result.rowRanges.size());
         return result.rowRanges;
     }
 }

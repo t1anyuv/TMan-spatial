@@ -1,0 +1,10 @@
+option java_package = "tman.filters.generated";
+option java_outer_classname = "TemporalFilter";
+option java_generic_services = true;
+option java_generate_equals_and_hash = true;
+option optimize_for = SPEED;
+
+message TemporalFilterMesg {
+  required int64 startTime = 1;
+  required int64 endTime = 2;
+}

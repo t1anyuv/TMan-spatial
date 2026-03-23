@@ -65,6 +65,11 @@ class LETILocSIndex(
     val remaining = new java.util.ArrayDeque[TShapeEE](200)
     val allContainedOrders = new java.util.ArrayList[java.lang.Integer](1000)
 
+    /** 查询窗口完全覆盖的 quad 个数（覆盖分支） */
+    var containedQuadCount = 0
+    /** 与查询窗口相交但非完全包含的 quad 个数（相交分支） */
+    var intersectQuadCount = 0
+
     val pp = jedis.pipelined()
     case class IntersectTask(
         qOrder: Int,
@@ -127,8 +132,10 @@ class LETILocSIndex(
       val quadCode = quad.elementCode
       if (validQuadCodes.contains(quadCode)) {
         if (quad.isContained(queryWindow)) {
+          containedQuadCount += 1
           quad.collectOrders(validQuadCodes, quadCodeOrder, allContainedOrders)
         } else if (quad.insertion(queryWindow)) {
+          intersectQuadCount += 1
           processIntersectQuad(quad)
           if (quad.level < maxR) {
             addChildren(quad, remaining)
@@ -148,6 +155,10 @@ class LETILocSIndex(
 
     pp.close()
     jedis.close()
+
+    println(
+      s"[LETILocSIndex.ranges] 覆盖 quad 数: $containedQuadCount, 相交 quad 数: $intersectQuadCount"
+    )
 
     mergeRanges(ranges)
   }

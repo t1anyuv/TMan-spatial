@@ -7,6 +7,7 @@ import filter.SpatialFilter;
 // import filter.SpatioTemporalFilter;  // TODO: 缺失的类
 // import filter.TemporalFilter;  // TODO: 缺失的类
 // ByteArrays 是 Scala 对象，通过 Java 包装类调用
+import lombok.Getter;
 import utils.ByteArraysWrapper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
@@ -64,6 +65,17 @@ public class QueryPlanner implements Closeable {
     protected Filter primaryFilter;
     /** 次过滤器列表（用于次索引查询或后过滤） */
     protected List<Filter> secondaryFilter = new ArrayList<>();
+    /**
+     * 上一次查询访问的单元格数（VC, Visited Cells）。
+     * 基于逻辑索引范围（ranges）统计：contained=true 记 1，否则按 range 宽度累计。
+     */
+    @Getter
+    protected int lastVisitedCells = 0;
+    /**
+     * 上一次查询用于 HBase {@link MultiRowRangeFilter} 的行键区间条数（与逻辑 {@link IndexRange} 条数不同，次索引展开后通常更大）。
+     */
+    @Getter
+    protected int lastRowRangeCount = 0;
 
     /**
      * 构造函数
@@ -169,8 +181,11 @@ public class QueryPlanner implements Closeable {
         List<Filter> finalFilters = new ArrayList<>();
         if (rowRanges.isEmpty()) {
             System.out.println("[QueryPlanner] No row ranges found, returning empty result.");
+            this.lastRowRangeCount = 0;
             return new Tuple2<>(0, null);
         }
+
+        this.lastRowRangeCount = rowRanges.size();
 
         finalFilters.add(new MultiRowRangeFilter(rowRanges));
         finalFilters.addAll(filters);
@@ -182,16 +197,12 @@ public class QueryPlanner implements Closeable {
         int size = 0;
         try {
             returnScanner = hTable.getScanner(scan);
-            // 创建一个新的扫描器用于计数，避免消耗返回的扫描器
-            ResultScanner countScanner = hTable.getScanner(scan);
-            size = getScannerCount(countScanner);
-            countScanner.close();
         } catch (IOException e) {
             System.err.println("[QueryPlanner] Error executing query: " + e.getMessage());
         }
-        System.out.println("[QueryPlanner] Final result size: " + size);
-        // 返回逻辑索引范围数量（ranges.size()），而不是 rowRanges.size()
-        int indexRangeCount = indexResult.ranges.isEmpty() ? rowRanges.size() : indexResult.ranges.size();
+        // 保存访问的单元格数到成员变量
+        this.lastVisitedCells = indexResult.visitedCells;
+        int indexRangeCount = indexResult.ranges.size();
         return new Tuple2<>(indexRangeCount, returnScanner);
     }
 
@@ -310,14 +321,23 @@ public class QueryPlanner implements Closeable {
         List<MultiRowRangeFilter.RowRange> rowRanges = new ArrayList<>();
         
         SpatialFilter sFilter = (SpatialFilter) secondaryFilter;
-        if (tableConfig.isXZ()) {
-            ranges = sFilter.getXZRanges(tableName, tableConfig);
-        } else {
-            ranges = sFilter.getRanges(tableName, tableConfig);
+        TableConfig.SpatialIndexKind kind = tableConfig.getSpatialIndexKind();
+        switch (kind) {
+            case XZ_LOC_S:
+            case XZ_STAR:
+                ranges = sFilter.getXZRanges(tableName, tableConfig);
+                break;
+            case LETI_LOC_S:
+            case LOC_S:
+            default:
+                ranges = sFilter.getRanges(tableName, tableConfig);
+                break;
         }
+
+        int visitedCells = calculateVisitedCells(ranges);
         secondaryRangesToRowkeys(tableName + "_" + SPATIAL.getIndexName(), ranges, rowRanges);
-        
-        return new IndexRangeResult(ranges, rowRanges);
+
+        return new IndexRangeResult(ranges, rowRanges, visitedCells);
     }
 
     /**
@@ -330,9 +350,8 @@ public class QueryPlanner implements Closeable {
         long startTime = System.currentTimeMillis();
         IndexRangeResult result = getKeysBySecondaryIndexCore(secondaryFilter);
         long elapsedTime = System.currentTimeMillis() - startTime;
-        // 打印逻辑索引范围数量（ranges.size()），而不是 rowRanges.size()
-        int indexRangeCount = result.ranges.isEmpty() ? result.rowRanges.size() : result.ranges.size();
-        System.out.println("[QueryPlanner] Secondary index query time: " + elapsedTime + "ms, Index range count: " + indexRangeCount + ", Row range count: " + result.rowRanges.size());
+        int indexRangeCount = result.ranges.size();
+        System.out.println("[QueryPlanner] Secondary index query time: " + elapsedTime + "ms, Logical index ranges: " + indexRangeCount + ", Row range count: " + result.rowRanges.size());
         return result.rowRanges;
     }
 
@@ -378,14 +397,58 @@ public class QueryPlanner implements Closeable {
         List<MultiRowRangeFilter.RowRange> rowRanges = new ArrayList<>();
         
         SpatialFilter sFilter = (SpatialFilter) primaryFilter;
-        if (tableConfig.isXZ()) {
-            ranges = sFilter.getXZRanges(tableName, tableConfig);
-        } else {
-            ranges = sFilter.getRanges(tableName, tableConfig);
+        TableConfig.SpatialIndexKind kind = tableConfig.getSpatialIndexKind();
+        switch (kind) {
+            case XZ_LOC_S:
+            case XZ_STAR:
+                ranges = sFilter.getXZRanges(tableName, tableConfig);
+                break;
+            case LETI_LOC_S:
+            case LOC_S:
+            default:
+                ranges = sFilter.getRanges(tableName, tableConfig);
+                break;
         }
-        rangesToRowkey(ranges, rowRanges);
         
-        return new IndexRangeResult(ranges, rowRanges);
+        int visitedCells = calculateVisitedCells(ranges);
+
+        rangesToRowkey(ranges, rowRanges);
+
+        return new IndexRangeResult(ranges, rowRanges, visitedCells);
+    }
+
+    /**
+     * 统计访问的单元格数（VC, Visited Cells）。
+     * <p>
+     * 规则：
+     * - 覆盖情况（contained=true）：每个 range 计 1；
+     * - 非覆盖情况（contained=false）：按 [lower, upper] 宽度累计。
+     *
+     * @param ranges 逻辑索引范围列表
+     * @return 访问的单元格数
+     */
+    protected int countVisitedCells(List<IndexRange> ranges) {
+        return calculateVisitedCells(ranges);
+    }
+
+    private int calculateVisitedCells(List<IndexRange> ranges) {
+        if (ranges == null || ranges.isEmpty()) {
+            return 0;
+        }
+        int visitedCells = 0;
+        for (IndexRange range : ranges) {
+            if (range.contained()) {
+                visitedCells += 1;
+            } else {
+                long width = range.upper() - range.lower() + 1;
+                if (width > Integer.MAX_VALUE - visitedCells) {
+                    visitedCells = Integer.MAX_VALUE;
+                } else {
+                    visitedCells += (int) width;
+                }
+            }
+        }
+        return visitedCells;
     }
 
     /**
@@ -398,8 +461,8 @@ public class QueryPlanner implements Closeable {
         long startTime = System.currentTimeMillis();
         IndexRangeResult result = getKeysByPrimaryIndexCore(primaryFilter);
         long elapsedTime = System.currentTimeMillis() - startTime;
-        int indexRangeCount = result.ranges.isEmpty() ? result.rowRanges.size() : result.ranges.size();
-        System.out.println("[QueryPlanner] Primary index query time: " + elapsedTime + "ms, Index range count: " + indexRangeCount + ", Row range count: " + result.rowRanges.size());
+        int indexRangeCount = result.ranges.size();
+        System.out.println("[QueryPlanner] Primary index query time: " + elapsedTime + "ms, Logical index ranges: " + indexRangeCount + ", Row range count: " + result.rowRanges.size());
         return result.rowRanges;
     }
 
@@ -525,10 +588,20 @@ public class QueryPlanner implements Closeable {
          * HBase 行键范围列表
          */
         final List<MultiRowRangeFilter.RowRange> rowRanges;
+        /**
+         * 访问的单元格数（VC）。
+         * 由 ranges 直接推导，表示访问成本近似值。
+         */
+        final int visitedCells;
 
-        IndexRangeResult(List<IndexRange> ranges, List<MultiRowRangeFilter.RowRange> rowRanges) {
+        IndexRangeResult(List<IndexRange> ranges, List<MultiRowRangeFilter.RowRange> rowRanges, int visitedCells) {
             this.ranges = ranges;
             this.rowRanges = rowRanges;
+            this.visitedCells = visitedCells;
+        }
+
+        IndexRangeResult(List<IndexRange> ranges, List<MultiRowRangeFilter.RowRange> rowRanges) {
+            this(ranges, rowRanges, 0);
         }
     }
 
@@ -538,6 +611,8 @@ public class QueryPlanner implements Closeable {
         this.filters = null;
         this.tableName = null;
         this.secondaryFilter = new ArrayList<>();
+        this.lastVisitedCells = 0;
+        this.lastRowRangeCount = 0;
     }
 
     @Override

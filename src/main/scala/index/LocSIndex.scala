@@ -267,6 +267,10 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
     root.children.asScala.foreach(remaining.add)
     remaining.add(levelStop)
     var level: Short = 1
+
+    var containedQuadCount = 0
+    var intersectQuadCount = 0
+
     while (!remaining.isEmpty) {
       val next = remaining.poll
       if (next.eq(levelStop)) {
@@ -282,9 +286,11 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
 
     def checkValue(quad: TShapeEE, level: Short): Unit = {
       if (quad.isContained(queryWindow)) {
+        containedQuadCount += 1
         val (min, max) = (quad.elementCode, quad.elementCode + IS(level))
         ranges.add(IndexRange(min << (alpha * beta).toLong, (max << (alpha * beta).toLong) - 1L, contained = true))
       } else if (quad.insertion(queryWindow)) {
+        intersectQuadCount += 1
         val key = quad.elementCode
         val result = jedis.zrangeByScoreWithScores(indexTable, key << (alpha * beta).toLong, ((key + 1L) << (alpha * beta).toLong) - 1L)
         // println(s"${key << (alpha*beta).toLong}   ${((key + 1) << (alpha*beta).toLong) - 1L}")
@@ -321,6 +327,9 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
     }
 
     jedis.close()
+    println(
+      s"[LocSIndex.ranges] 覆盖 quad 数: $containedQuadCount, 相交 quad 数: $intersectQuadCount"
+    )
     ranges
   }
 
@@ -340,6 +349,8 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
     //    val executorService = Executors.newCachedThreadPool
     //    val executor = Executors.newFixedThreadPool(8)
     var size = 0
+    var containedQuadCount = 0
+    var intersectQuadCount = 0
     while (!remaining.isEmpty) {
       val next = remaining.poll
       if (next.eq(levelStop)) {
@@ -356,11 +367,13 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
     //TODO: 使用redis做缓存，并根据 key 快速查询包含的 key 和 signature
     def checkValue(quad: TShapeEE, level: Short): Unit = {
       if (quad.isContained(queryWindow)) {
+        containedQuadCount += 1
         val (min, max) = (quad.elementCode, quad.elementCode + IS(level) - 1L)
         //println(quad.toString)
         ranges.add(IndexRange(min << (alpha * beta).toLong, (max << (alpha * beta).toLong) - 1L, contained = true))
         size += 1
       } else if (quad.insertion(queryWindow)) {
+        intersectQuadCount += 1
         //        checkList.add((quad, level))
         val key = quad.elementCode
         size += 1
@@ -432,6 +445,9 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
     //    executorService.shutdown();
     //    executorService.awaitTermination(200, TimeUnit.MILLISECONDS)
 
+    println(
+      s"[LocSIndex.ranges] 覆盖 quad 数: $containedQuadCount, 相交 quad 数: $intersectQuadCount"
+    )
     println(s"checked: $size")
     ranges
   }

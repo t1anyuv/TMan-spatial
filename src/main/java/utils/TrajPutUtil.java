@@ -8,10 +8,10 @@ import entity.Trajectory;
 import index.CellIndex;
 import index.LETILocSIndex;
 import index.LocSIndex;
+import index.XZStarIndex;
 import index.XZLocSIndex;
 import index.XZSFC;
 import preprocess.compress.IIntegerCompress;
-import utils.ByteArraysWrapper;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -159,7 +159,7 @@ public class TrajPutUtil implements Serializable {
         byte[] yEncoding = integerCompress.encoding(yValue);
         byte[] zEncoding = integerCompress.encoding(zValue);
 
-        Tuple2<Long, byte[]> indexValue = getIndex(t[0], t[1], geo, config);
+        Tuple2<Long, byte[]> indexValue = getIndex(t[0], t[1], geo, geoJTS, config);
         byte[] index = indexValue._2;
 
         Put put = new Put(index);
@@ -187,14 +187,23 @@ public class TrajPutUtil implements Serializable {
      * @param config 表配置
      * @return Tuple2<索引值, RowKey字节数组>
      */
-    private static Tuple2<Long, byte[]> getIndex(String oid, String tid, MultiPoint geo, TableConfig config) {
+    private static Tuple2<Long, byte[]> getIndex(String oid, String tid, MultiPoint geo,
+                                                 org.locationtech.jts.geom.Geometry geoJTS, TableConfig config) {
         byte[] bytes = new byte[8 + tid.length()];
         long indexValue = 0;
         if (Objects.requireNonNull(config.getPrimary()) == IndexEnum.INDEX_TYPE.SPATIAL) {
-            if (config.isXZ()) {
-                indexValue = getXZSpatialIndexValue(geo, config);
-            } else {
-                indexValue = getSpatialIndexValue(geo, config);
+            switch (config.getSpatialIndexKind()) {
+                case XZ_STAR:
+                    indexValue = getXZStarSpatialIndexValue(geoJTS, config);
+                    break;
+                case XZ_LOC_S:
+                    indexValue = getXZSpatialIndexValue(geo, config);
+                    break;
+                case LETI_LOC_S:
+                case LOC_S:
+                default:
+                    indexValue = getSpatialIndexValue(geo, config);
+                    break;
             }
             ByteArraysWrapper.writeLong(indexValue, bytes, 0);
             System.arraycopy(Bytes.toBytes(tid), 0, bytes, 8, tid.length());
@@ -245,13 +254,22 @@ public class TrajPutUtil implements Serializable {
      */
     public static Tuple3<Object, Object, Object> getSpatialIndex(MultiPoint geo, TableConfig config) {
         XZSFC xzsfc;
-        if (config.isRLEncoding()) {
-            assert !config.isXZ();
-            xzsfc = createLETILocSIndex(config);
-        } else if (config.isXZ()) {
-            xzsfc = createXZLocSIndex(config);
-        } else {
-            xzsfc = createLocSIndex(config);
+        switch (config.getSpatialIndexKind()) {
+            case LETI_LOC_S:
+                assert !config.isXZ();
+                xzsfc = createLETILocSIndex(config);
+                break;
+            case XZ_LOC_S:
+                xzsfc = createXZLocSIndex(config);
+                break;
+            case LOC_S:
+                xzsfc = createLocSIndex(config);
+                break;
+            case XZ_STAR:
+            default:
+                // XZ_STAR 的主键/候选区间由 XZStarIndex/XZStarSFC 直接生成；
+                // 这里返回 Tuple3<level,quadCode,shapeCode> 的接口不适用。
+                throw new UnsupportedOperationException("XZ_STAR does not support getSpatialIndex Tuple3 path");
         }
         return xzsfc.index(geo, false);
     }
@@ -321,6 +339,25 @@ public class TrajPutUtil implements Serializable {
         int moveBits = config.getAlpha() * config.getBeta();
         return shape | (location << moveBits);
     }
+
+    private static long getXZStarSpatialIndexValue(org.locationtech.jts.geom.Geometry geoJTS, TableConfig config) {
+        XZStarIndex xzStarIndex;
+        if (config.getEnvelope() != null) {
+            xzStarIndex = XZStarIndex.apply(
+                    (short) config.getResolution(),
+                    new Tuple2<>(config.getEnvelope().getXMin(), config.getEnvelope().getXMax()),
+                    new Tuple2<>(config.getEnvelope().getYMin(), config.getEnvelope().getYMax())
+            );
+        } else {
+            xzStarIndex = XZStarIndex.apply(
+                    (short) config.getResolution(),
+                    new Tuple2<>(-180.0, 180.0),
+                    new Tuple2<>(-90.0, 90.0)
+            );
+        }
+        return xzStarIndex.index(geoJTS, true);
+    }
+
 
     /**
      * 创建 LocSIndex 实例

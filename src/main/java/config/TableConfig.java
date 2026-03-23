@@ -2,7 +2,6 @@ package config;
 
 import com.esri.core.geometry.Envelope;
 import constans.IndexEnum;
-// import index.TimePeriod;  // TODO: 缺失的类，需要实现或移除相关功能
 import preprocess.compress.IIntegerCompress;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,6 +13,13 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class TableConfig implements Serializable {
+    public enum SpatialIndexKind {
+        LOC_S,
+        XZ_LOC_S,
+        LETI_LOC_S,
+        XZ_STAR
+    }
+
     @Getter
     private IndexEnum.INDEX_TYPE primary;
 
@@ -104,12 +110,12 @@ public class TableConfig implements Serializable {
     }
 
     /**
-     * RL 编码标志
+     * LETI 索引模式
      *
      * @return boolean
      */
-    public boolean isRLEncoding() {
-        return rlEncoding == 1;
+    public boolean isLETI() {
+        return rlEncoding == 1 && !isXZ() && isTspEncoding();
     }
 
     /**
@@ -118,6 +124,40 @@ public class TableConfig implements Serializable {
      * @return boolean
      */
     public boolean isAdaptivePartition() {
-        return adaptivePartition == 1;
+        return isLETI() && adaptivePartition == 1;
+    }
+
+    /**
+     * XZ_STAR 索引模式识别：
+     * - 固定使用 alpha=2, beta=2
+     * - 不参与 TSP 编码（tspEncoding=0）
+     * - 且使用 XZ 编码路径（isXZ=1）
+     */
+    public boolean isXZStar() {
+        return isXZ == 1
+                && alpha == 2
+                && beta == 2
+                && tspEncoding == 0;
+    }
+
+    /**
+     * 当前配置对应的“四种空间索引”之一。
+     * 规则（优先级从高到低）：
+     * - LETI: rlEncoding=1, isXZ=0, 且 tspEncoding=1/2
+     * - XZ_STAR: isXZ=1, alpha=2, beta=2, tspEncoding=0
+     * - XZ_LOC_S: isXZ=1（且非 XZ_STAR）
+     * - LOC_S: 其余情况（isXZ=0 且非 LETI）
+     */
+    public SpatialIndexKind getSpatialIndexKind() {
+        if (isLETI()) {
+            return SpatialIndexKind.LETI_LOC_S;
+        }
+        if (isXZStar()) {
+            return SpatialIndexKind.XZ_STAR;
+        }
+        if (isXZ()) {
+            return SpatialIndexKind.XZ_LOC_S;
+        }
+        return SpatialIndexKind.LOC_S;
     }
 }

@@ -69,7 +69,7 @@ public class XZOrderingQueryPlanner extends QueryPlanner {
             System.err.println("[XZOrderingQueryPlanner] Error executing query: " + e.getMessage());
         }
         
-        int indexRangeCount = indexResult.ranges.isEmpty() ? rowRanges.size() : indexResult.ranges.size();
+        int indexRangeCount = indexResult.ranges.size();
         return new Tuple2<>(indexRangeCount, size);
     }
 
@@ -129,8 +129,8 @@ public class XZOrderingQueryPlanner extends QueryPlanner {
         long startTime = System.currentTimeMillis();
         IndexRangeResult result = getKeysBySecondaryIndexCore(secondaryFilter);
         long elapsedTime = System.currentTimeMillis() - startTime;
-        int indexRangeCount = result.ranges.isEmpty() ? result.rowRanges.size() : result.ranges.size();
-        System.out.println("[XZOrderingQueryPlanner] Secondary index query time: " + elapsedTime + "ms, Index range count: " + indexRangeCount + ", Row range count: " + result.rowRanges.size());
+        int indexRangeCount = result.ranges.size();
+        System.out.println("[XZOrderingQueryPlanner] Secondary index query time: " + elapsedTime + "ms, Logical index ranges: " + indexRangeCount + ", Row range count: " + result.rowRanges.size());
         return result.rowRanges;
     }
 
@@ -154,8 +154,8 @@ public class XZOrderingQueryPlanner extends QueryPlanner {
         long startTime = System.currentTimeMillis();
         IndexRangeResult result = getKeysByPrimaryIndexCore(primaryFilter);
         long elapsedTime = System.currentTimeMillis() - startTime;
-        int indexRangeCount = result.ranges.isEmpty() ? result.rowRanges.size() : result.ranges.size();
-        System.out.println("[XZOrderingQueryPlanner] Primary index query time: " + elapsedTime + "ms, Index range count: " + indexRangeCount + ", Row range count: " + result.rowRanges.size());
+        int indexRangeCount = result.ranges.size();
+        System.out.println("[XZOrderingQueryPlanner] Primary index query time: " + elapsedTime + "ms, Logical index ranges: " + indexRangeCount + ", Row range count: " + result.rowRanges.size());
         return result.rowRanges;
     }
 

@@ -6,6 +6,7 @@ import config.TableConfig;
 import constans.IndexEnum;
 import index.LETILocSIndex;
 import index.LocSIndex;
+import index.XZStarIndex;
 import index.XZLocSIndex;
 import preprocess.compress.IIntegerCompress;
 import lombok.Getter;
@@ -127,7 +128,8 @@ public class SpatialFilter extends FilterBase {
         Envelope2D envelope = new Envelope2D();
         this.geometry.queryEnvelope2D(envelope);
 
-        if (config.isRLEncoding() && config.getPrimary().equals(IndexEnum.INDEX_TYPE.SPATIAL)) {
+        if (config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI_LOC_S
+                && config.getPrimary().equals(IndexEnum.INDEX_TYPE.SPATIAL)) {
             return getRangesWithLETI(tableName, config, envelope);
         }
 
@@ -190,7 +192,8 @@ public class SpatialFilter extends FilterBase {
         Envelope2D envelope = new Envelope2D();
         this.geometry.queryEnvelope2D(envelope);
 
-        if (config.isRLEncoding() && config.getPrimary().equals(IndexEnum.INDEX_TYPE.SPATIAL)) {
+        if (config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI_LOC_S
+                && config.getPrimary().equals(IndexEnum.INDEX_TYPE.SPATIAL)) {
             return getRangesWithLETI(tableName, config, envelope);
         }
 
@@ -201,6 +204,10 @@ public class SpatialFilter extends FilterBase {
      * 使用 XZLocS 索引获取范围
      */
     private List<IndexRange> getXZRangesWithXZLocS(String tableName, TableConfig config, Envelope2D envelope) {
+        if (config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.XZ_STAR) {
+            return getXZStarRanges(tableName, config, envelope);
+        }
+
         XZLocSIndex xzLocSIndex;
         if (null != config.getEnvelope()) {
             xzLocSIndex = XZLocSIndex.apply((short) config.getResolution(), new Tuple2<>(config.getEnvelope().getXMin(), config.getEnvelope().getXMax()), new Tuple2<>(config.getEnvelope().getYMin(), config.getEnvelope().getYMax()), config.getAlpha(), config.getBeta());
@@ -215,8 +222,37 @@ public class SpatialFilter extends FilterBase {
         }
     }
 
+    private List<IndexRange> getXZStarRanges(String tableName, TableConfig config, Envelope2D envelope) {
+        XZStarIndex xzStarIndex;
+        if (null != config.getEnvelope()) {
+            xzStarIndex = XZStarIndex.apply(
+                    (short) config.getResolution(),
+                    new Tuple2<>(config.getEnvelope().getXMin(), config.getEnvelope().getXMax()),
+                    new Tuple2<>(config.getEnvelope().getYMin(), config.getEnvelope().getYMax())
+            );
+        } else {
+            xzStarIndex = XZStarIndex.apply(
+                    (short) config.getResolution(),
+                    new Tuple2<>(-180.0, 180.0),
+                    new Tuple2<>(-90.0, 90.0)
+            );
+        }
+        return xzStarIndex.ranges(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax);
+    }
+
     public long getCost(String tableName, TableConfig config) {
-        List<IndexRange> indexRanges = config.isXZ() ? getXZRanges(tableName, config) : getRanges(tableName, config);
+        List<IndexRange> indexRanges;
+        switch (config.getSpatialIndexKind()) {
+            case XZ_LOC_S:
+            case XZ_STAR:
+                indexRanges = getXZRanges(tableName, config);
+                break;
+            case LETI_LOC_S:
+            case LOC_S:
+            default:
+                indexRanges = getRanges(tableName, config);
+                break;
+        }
 
         long totalSize = 0;
         try (Jedis jedis = new Jedis(config.getRedisHost(), 6379)) {

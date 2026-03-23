@@ -144,8 +144,9 @@ class XZLocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Doub
     pp.close()
     jedis.close()
 
-    // 打印统计信息
-    println(s"[XZLocSIndex.rangesThread] Contained quads: ${containedCount.get()}, Intersect quads: ${intersectCount.get()}")
+    println(
+      s"[XZLocSIndex.rangesThread] 覆盖 quad 数: ${containedCount.get()}, 相交 quad 数: ${intersectCount.get()}"
+    )
     
     //    println(count.get())
     class SignatureCall(quad: XZ2EE, key: Long, resultT: Response[java.util.List[Tuple]], tspEncoding: Boolean) extends Callable[String] {
@@ -298,8 +299,9 @@ class XZLocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Doub
 
     jedis.close()
 
-    // 打印统计信息
-    println(s"[XZLocSIndex.ranges] Contained quads: $containedCount, Intersect quads: $intersectCount")
+    println(
+      s"[XZLocSIndex.ranges] 覆盖 quad 数: $containedCount, 相交 quad 数: $intersectCount"
+    )
     
     ranges
   }
@@ -319,6 +321,8 @@ class XZLocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Doub
     //    val executorService = Executors.newCachedThreadPool
     //    val executor = Executors.newFixedThreadPool(8)
     var size = 0
+    var containedQuadCount = 0
+    var intersectQuadCount = 0
     while (!remaining.isEmpty) {
       val next = remaining.poll
       if (next.eq(levelStop)) {
@@ -335,11 +339,13 @@ class XZLocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Doub
     //TODO: 使用 redis 做缓存，并根据 key 快速查询包含的 key 和 signature
     def checkValue(quad: XZ2EE, level: Short): Unit = {
       if (quad.isContained(queryWindow)) {
+        containedQuadCount += 1
         val (min, max) = (quad.elementCode, quad.elementCode + IS(level) - 1L)
         //println(quad.toString)
         ranges.add(IndexRange((min << (alpha * beta).toLong) | 0L, (max << (alpha * beta).toLong) | 0L, contained = true))
         size += 1
       } else if (quad.insertion(queryWindow)) {
+        intersectQuadCount += 1
         //        checkList.add((quad, level))
         val key = quad.elementCode
         size += 1
@@ -483,6 +489,9 @@ class XZLocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Doub
         }
       }
     }
+    println(
+      s"[XZLocSIndex.ranges] 覆盖 quad 数: $containedQuadCount, 相交 quad 数: $intersectQuadCount"
+    )
     println(s"checked: $size")
     ranges
   }

@@ -45,9 +45,11 @@ public abstract class BasicQuery {
      * <p>
      * 指标说明：
      * - time       : 查询执行时间（毫秒）
-     * - indexRanges: 逻辑索引范围数量（IndexRange 的数量）
-     * - candidates : 未经过空间过滤前的候选行键数量（CountPlanner 的结果）
-     * - finalSize  : 最终返回的结果数量（经过空间过滤后的结果）
+     * - logicIndexRanges: 逻辑索引区间数（SFC 上 IndexRange 条数）
+     * - rowKeyRanges    : HBase MultiRowRangeFilter 使用的行键区间条数
+     * - candidates      : 未经过空间过滤前的候选行键数量（CountPlanner 的结果）
+     * - finalSize       : 最终返回的结果数量（经过空间过滤后的结果）
+     * - vc              : 访问的单元格数（Visited Cells）
      * <p>
      * 统计值说明：
      * - min   : 所有样本中的最小值
@@ -61,14 +63,18 @@ public abstract class BasicQuery {
      * @param timeStatistic       查询时间统计列表
      * @param sizeStatistic       最终结果数量统计列表
      * @param candidatesStatistic 候选数量统计列表
-     * @param indexRangeSize      索引范围数量统计列表
+     * @param logicIndexRangeSize 逻辑 IndexRange 条数统计列表
+     * @param rowKeyRangeSize     行键 RowRange 条数统计列表
+     * @param vcStatistic         访问单元格数统计列表
      * @param filePath            输出文件路径
      * @throws IOException 如果写入文件时发生错误
      */
     public static void saveResult(SortedList<Long> timeStatistic,
                                   SortedList<Long> sizeStatistic,
                                   SortedList<Long> candidatesStatistic,
-                                  SortedList<Long> indexRangeSize,
+                                  SortedList<Long> logicIndexRangeSize,
+                                  SortedList<Long> rowKeyRangeSize,
+                                  SortedList<Long> vcStatistic,
                                   String filePath) throws IOException {
         // 确保父目录存在
         Path path = Paths.get(filePath);
@@ -85,11 +91,17 @@ public abstract class BasicQuery {
                     timeStats._1(), timeStats._2(), timeStats._3(), timeStats._4(),
                     timeStats._5(), timeStats._6(), timeStats._7()));
 
-            // 逻辑索引范围数量统计
-            Tuple7<Long, Long, Long, Long, Long, Long, Long> indexRangeStats = getStatistic(indexRangeSize);
-            writer.write(String.format(CSV_FORMAT, "indexRanges",
-                    indexRangeStats._1(), indexRangeStats._2(), indexRangeStats._3(), indexRangeStats._4(),
-                    indexRangeStats._5(), indexRangeStats._6(), indexRangeStats._7()));
+            // 逻辑索引区间数（SFC IndexRange）
+            Tuple7<Long, Long, Long, Long, Long, Long, Long> logicStats = getStatistic(logicIndexRangeSize);
+            writer.write(String.format(CSV_FORMAT, "logicIndexRanges",
+                    logicStats._1(), logicStats._2(), logicStats._3(), logicStats._4(),
+                    logicStats._5(), logicStats._6(), logicStats._7()));
+
+            // HBase 扫描行键区间数
+            Tuple7<Long, Long, Long, Long, Long, Long, Long> rowKeyStats = getStatistic(rowKeyRangeSize);
+            writer.write(String.format(CSV_FORMAT, "rowKeyRanges",
+                    rowKeyStats._1(), rowKeyStats._2(), rowKeyStats._3(), rowKeyStats._4(),
+                    rowKeyStats._5(), rowKeyStats._6(), rowKeyStats._7()));
 
             // 未经过空间过滤前的候选数量统计
             Tuple7<Long, Long, Long, Long, Long, Long, Long> candStats = getStatistic(candidatesStatistic);
@@ -102,6 +114,12 @@ public abstract class BasicQuery {
             writer.write(String.format(CSV_FORMAT, "finalSize",
                     sizeStats._1(), sizeStats._2(), sizeStats._3(), sizeStats._4(),
                     sizeStats._5(), sizeStats._6(), sizeStats._7()));
+
+            // 访问单元格数统计（VC）
+            Tuple7<Long, Long, Long, Long, Long, Long, Long> vcStats = getStatistic(vcStatistic);
+            writer.write(String.format(CSV_FORMAT, "vc",
+                    vcStats._1(), vcStats._2(), vcStats._3(), vcStats._4(),
+                    vcStats._5(), vcStats._6(), vcStats._7()));
         }
     }
 
@@ -174,8 +192,10 @@ public abstract class BasicQuery {
             // 初始化统计列表
             SortedList<Long> timeStatistic = new SortedList<>(Long::compare);
             SortedList<Long> sizeStatistic = new SortedList<>(Long::compare);
-            SortedList<Long> rangeSize = new SortedList<>(Long::compare);
+            SortedList<Long> logicIndexRangeStatistic = new SortedList<>(Long::compare);
+            SortedList<Long> rowKeyRangeStatistic = new SortedList<>(Long::compare);
             SortedList<Long> candidatesStatistic = new SortedList<>(Long::compare);
+            SortedList<Long> vcStatistic = new SortedList<>(Long::compare);
 
             // 预热查询（使用第一个查询条件）
             if (queryConditions.length > 0) {
@@ -202,29 +222,34 @@ public abstract class BasicQuery {
                 printQueryHeader(i + 1, queryConditions.length, condition);
 
                 try {
-                    // 执行查询并记录时间
-                    long startTime = System.currentTimeMillis();
                     List<FilterBase> filters = getFilters(condition, tableConfig);
+                    long startTimeNs = System.nanoTime();
                     Tuple2<Integer, ResultScanner> result = queryPlanner.executeByFilter(filters, tableConfig, table);
-                    long queryTime = System.currentTimeMillis() - startTime;
 
-                    if (result != null && result._2 != null) {
+                    if (result != null && result._2() != null) {
                         // 统计最终结果数量
-                        long finalSize = countResults(result._2);
-                        
-                        // 统计候选数量（未经空间过滤）
+                        long finalSize = countResults(result._2());
+                        long queryTime = (System.nanoTime() - startTimeNs) / 1_000_000L;
+
+                        // 使用 countPlanner 统计候选数量
                         Tuple2<Integer, ResultScanner> countResult = countPlanner.executeByFilter(filters, tableConfig, table);
-                        long candidates = (countResult != null && countResult._2 != null) 
-                                ? countResults(countResult._2) : 0;
+                        long candidates = (countResult != null && countResult._2() != null)
+                                ? countResults(countResult._2()) : 0;
+
+                        // 获取访问的单元格数与行键区间数
+                        int visitedCells = queryPlanner.getLastVisitedCells();
+                        int rowKeyRanges = queryPlanner.getLastRowRangeCount();
 
                         // 记录统计信息
                         timeStatistic.add(queryTime);
-                        rangeSize.add(Long.valueOf(result._1));
+                        logicIndexRangeStatistic.add(Long.valueOf(result._1()));
+                        rowKeyRangeStatistic.add((long) rowKeyRanges);
                         sizeStatistic.add(finalSize);
                         candidatesStatistic.add(candidates);
+                        vcStatistic.add((long) visitedCells);
 
                         // 打印查询结果
-                        printQueryResult(queryTime, result._1, candidates, finalSize);
+                        printQueryResult(queryTime, result._1(), rowKeyRanges, candidates, finalSize, visitedCells);
                     } else {
                         System.out.println("⚠ Query returned null result");
                     }
@@ -237,12 +262,14 @@ public abstract class BasicQuery {
 
             // 保存统计结果
             printHeader("Saving Statistics");
-            saveResult(timeStatistic, sizeStatistic, candidatesStatistic, rangeSize, resultPath);
+            saveResult(timeStatistic, sizeStatistic, candidatesStatistic, logicIndexRangeStatistic,
+                    rowKeyRangeStatistic, vcStatistic, resultPath);
             System.out.printf("✓ Statistics saved to: %s%n", resultPath);
             System.out.println();
 
             // 打印汇总统计信息
-            printSummaryStatistics(timeStatistic, sizeStatistic, candidatesStatistic, rangeSize);
+            printSummaryStatistics(timeStatistic, sizeStatistic, candidatesStatistic, logicIndexRangeStatistic,
+                    rowKeyRangeStatistic, vcStatistic);
 
         } catch (Exception e) {
             System.err.println("✗ Query execution failed: " + e.getMessage());
@@ -256,7 +283,9 @@ public abstract class BasicQuery {
     private void printSummaryStatistics(SortedList<Long> timeStatistic,
                                         SortedList<Long> sizeStatistic,
                                         SortedList<Long> candidatesStatistic,
-                                        SortedList<Long> rangeSize) {
+                                        SortedList<Long> logicIndexRangeStatistic,
+                                        SortedList<Long> rowKeyRangeStatistic,
+                                        SortedList<Long> vcStatistic) {
         printHeader("Summary Statistics");
 
         if (!timeStatistic.isEmpty()) {
@@ -264,9 +293,14 @@ public abstract class BasicQuery {
             printStatLine("Query Time (ms)", stats);
         }
 
-        if (!rangeSize.isEmpty()) {
-            Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(rangeSize);
-            printStatLine("Index Ranges", stats);
+        if (!logicIndexRangeStatistic.isEmpty()) {
+            Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(logicIndexRangeStatistic);
+            printStatLine("Logic index ranges (SFC)", stats);
+        }
+
+        if (!rowKeyRangeStatistic.isEmpty()) {
+            Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(rowKeyRangeStatistic);
+            printStatLine("Row-key scan ranges", stats);
         }
 
         if (!candidatesStatistic.isEmpty()) {
@@ -277,6 +311,11 @@ public abstract class BasicQuery {
         if (!sizeStatistic.isEmpty()) {
             Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(sizeStatistic);
             printStatLine("Final Results", stats);
+        }
+
+        if (!vcStatistic.isEmpty()) {
+            Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(vcStatistic);
+            printStatLine("Visited Cells", stats);
         }
 
         System.out.println(SEPARATOR + "\n");
@@ -304,11 +343,14 @@ public abstract class BasicQuery {
     /**
      * 打印查询结果
      */
-    private void printQueryResult(long queryTime, int indexRanges, long candidates, long finalSize) {
+    private void printQueryResult(long queryTime, int logicIndexRanges, int rowKeyRanges, long candidates, long finalSize,
+                                  int visitedCells) {
         System.out.printf("✓ Query Time      : %d ms%n", queryTime);
-        System.out.printf("  Index Ranges    : %d%n", indexRanges);
+        System.out.printf("  Logic ranges    : %d (SFC IndexRange)%n", logicIndexRanges);
+        System.out.printf("  Row-key ranges  : %d (HBase scan)%n", rowKeyRanges);
         System.out.printf("  Candidates      : %d (before spatial filter)%n", candidates);
         System.out.printf("  Final Results   : %d (after spatial filter)%n", finalSize);
+        System.out.printf("  Visited Cells   : %d%n", visitedCells);
     }
 
     /**
@@ -321,7 +363,7 @@ public abstract class BasicQuery {
     }
 
     /**
-     * 统计结果数量（不打印）
+     * 统计结果数量
      */
     private long countResults(ResultScanner resultScanner) {
         if (resultScanner == null) {
@@ -359,7 +401,7 @@ public abstract class BasicQuery {
     }
 
     /**
-     * 保存查询结果的 RowKey 到文件（用于调试）
+     * 保存查询结果的 RowKey 到文件
      * <p>
      * 将每个结果的 RowKey 以二进制字符串格式写入文件，每行一个。
      *
