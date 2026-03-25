@@ -19,6 +19,7 @@ public class Constants {
     public static String GEOM_X = "f_traj_X";
     public static String GEOM_Y = "f_traj_Y";
     public static String GEOM_Z = "f_traj_Z";
+    public static String MAX_SFC = "max_sfc";
     public static String START_POINT = META + "start_point";
     public static String END_POINT = META + "end_point";
     public static String START_TIME = META + "start_time";
@@ -49,5 +50,13 @@ public class Constants {
     public static String META_TABLE_xmax = "x_max";
     public static String META_TABLE_ymin = "y_min";
     public static String META_TABLE_ymax = "y_max";
+    
+    public static final String META_TABLE_IS_LMSFC = "isLMSFC";
+    public static final String META_TABLE_THETA_CONFIG = "thetaConfig";
+    
+    public static final String META_TABLE_IS_BMTREE = "isBMTree";
+    public static final String META_TABLE_BMTREE_CONFIG_PATH = "bmtreeConfigPath";
+    public static final String META_TABLE_BMTREE_BIT_LENGTH = "bmtreeBitLength";
+
     public static String STAT_TABLE = "_stat";
 }

@@ -53,6 +53,42 @@ public class QueryUtils implements Cloneable {
             maxShapeBits = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_MAX_SHAPE_BITS)));
         } catch (Exception ignored) {
         }
+        int isLMSFC = 0;
+        try {
+            isLMSFC = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_LMSFC)));
+        } catch (Exception ignored) {
+        }
+        int isBMTree = 0;
+        try{
+            isBMTree = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_BMTREE)));
+        } catch (Exception ignored) {
+        }
+        String bmtreeConfigPath = null;
+        try {
+            byte[] pathBytes = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_BMTREE_CONFIG_PATH));
+            if (pathBytes != null) {
+                bmtreeConfigPath = Bytes.toString(pathBytes);
+            }
+        } catch (Exception ignored) {
+        }
+        String bmtreeBitLength = null;
+        try {
+            byte[] bitLengthBytes = result.getValue(Bytes.toBytes(DEFAULT_CF),
+                    Bytes.toBytes(META_TABLE_BMTREE_BIT_LENGTH));
+            if (bitLengthBytes != null) {
+                bmtreeBitLength = Bytes.toString(bitLengthBytes);
+            }
+        } catch (Exception ignored) {
+        }
+        String thetaConfig = null;
+        try {
+            byte[] thetaConfigBytes = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_THETA_CONFIG));
+            if (thetaConfigBytes != null) {
+                thetaConfig = Bytes.toString(thetaConfigBytes);
+            }
+            //thetaConfig = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_THETA_CONFIG));
+        } catch (Exception ignored) {
+        }
         String redisHost = Bytes.toString(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_REDIS)));
         Short shards = null;
         String compression = Bytes.toString(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_compression)));
@@ -83,6 +119,11 @@ public class QueryUtils implements Cloneable {
         tableConfig.setTspEncoding(tspEncoding);
         tableConfig.setAdaptivePartition(adaptivePartition);
         tableConfig.setMaxShapeBits(maxShapeBits);
+        tableConfig.setIsLMSFC(isLMSFC);
+        tableConfig.setThetaConfig(thetaConfig);
+        tableConfig.setIsBMTree(isBMTree);
+        tableConfig.setBMTreeConfigPath(bmtreeConfigPath);
+        tableConfig.setBMTreeBitLength(bmtreeBitLength);
         return tableConfig;
     }
 

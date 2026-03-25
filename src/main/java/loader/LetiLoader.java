@@ -43,6 +43,10 @@ public class LetiLoader extends Loader {
      */
     public LetiLoader(TableConfig config, String tableName, String sourcePath, String resultPath) throws IOException {
         super(config, tableName, sourcePath, resultPath);
+        // 设置 LETI 索引的固定配置
+        config.setIsXZ(0);
+        config.setRlEncoding(1);
+        config.setTspEncoding(1);
         LSFCReader.LSFCMapper mapper = loadFromClasspath("RLOrder.json");
         quadCodeOrder = mapper.quadCodeOrder;
         quadCodeParentQuad = mapper.getQuadCodeParentQuad();
@@ -67,6 +71,11 @@ public class LetiLoader extends Loader {
      */
     public LetiLoader(TableConfig config, String sourcePath, String resultPath) throws IOException {
         super(config, sourcePath, resultPath);
+
+        // 设置 LETI 索引的固定配置
+        config.setIsXZ(0);
+        config.setRlEncoding(1);
+        config.setTspEncoding(1);
 
         LSFCReader.LSFCMapper rlOrderingData = loadFromClasspath("RLOrder.json");
         quadCodeOrder = rlOrderingData.quadCodeOrder;

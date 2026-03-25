@@ -1,7 +1,9 @@
 package experiments.benchmark;
 
 import experiments.benchmark.QueryLoader.QueryWindow;
+import experiments.tman.BMTreeSpatialQuery;
 import experiments.tman.BasicQuery;
+import experiments.tman.LMSFCSpatialQuery;
 import experiments.tman.LetiSpatialQuery;
 import experiments.tman.SpatialQuery;
 
@@ -101,10 +103,9 @@ public class BenchmarkRunner {
             case XZ_STAR:
                 return new SpatialQuery();
             case LMSFC:
+                return new LMSFCSpatialQuery();
             case BMTREE:
-                // TODO: 实现LMSFC和BMT的查询执行器
-                System.err.println("Method " + method + " not yet implemented");
-                return null;
+                return new BMTreeSpatialQuery();
             default:
                 return new SpatialQuery();
         }

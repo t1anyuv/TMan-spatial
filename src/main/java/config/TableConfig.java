@@ -17,7 +17,9 @@ public class TableConfig implements Serializable {
         LOC_S,
         XZ_LOC_S,
         LETI_LOC_S,
-        XZ_STAR
+        XZ_STAR,
+        LMSFC,
+        BMTREE
     }
 
     @Getter
@@ -56,6 +58,12 @@ public class TableConfig implements Serializable {
      * 用于统一编码空间，避免不同 quad 的索引范围重叠
      */
     private int maxShapeBits = 0;
+
+    private int isLMSFC = 0;
+    private String thetaConfig = "";
+    private int isBMTree = 0;
+    private String bmtreeConfigPath = "";
+    private int[] bmtreeBitLength = new int[0];
 
     public TableConfig() {
     }
@@ -141,6 +149,67 @@ public class TableConfig implements Serializable {
     }
 
     /**
+     * 是否使用 LMSFC 索引
+     *
+     * @return boolean
+     */
+    public boolean isLMSFC() {
+        return isLMSFC == 1;
+    }
+
+    /**
+     * 是否使用 BMTree 索引
+     *
+     * @return boolean
+     */
+    public boolean isBMTree() {
+        return isBMTree == 1;
+    }
+
+    /**
+     * 获取 BMTree 配置文件路径
+     */
+    public String getBMTreeConfigPath() {
+        return bmtreeConfigPath;
+    }
+
+    /**
+     * 设置 BMTree 配置文件路径
+     */
+    public void setBMTreeConfigPath(String bmtreeConfigPath) {
+        this.bmtreeConfigPath = bmtreeConfigPath;
+    }
+
+    /**
+     * 获取 BMTree bit长度配置（int数组）
+     */
+    public int[] getBMTreeBitLength() {
+        return bmtreeBitLength;
+    }
+
+    /**
+     * 设置 BMTree bit长度配置（接受字符串，如"20,20"）
+     */
+    public void setBMTreeBitLength(String bitLengthStr) {
+        if (bitLengthStr == null || bitLengthStr.trim().isEmpty()) {
+            this.bmtreeBitLength = new int[] { 20, 20 }; // 默认值
+            return;
+        }
+        String[] parts = bitLengthStr.split(",");
+        this.bmtreeBitLength = new int[parts.length];
+        for (int i = 0; i < parts.length; i++) {
+            this.bmtreeBitLength[i] = Integer.parseInt(parts[i].trim());
+        }
+    }
+
+    /**
+     * 设置 BMTree bit长度配置（接受int数组）
+     */
+    public void setBMTreeBitLength(int[] bitLength) {
+        this.bmtreeBitLength = bitLength;
+    }
+
+    /**
      * 当前配置对应的“四种空间索引”之一。
      * 规则（优先级从高到低）：
      * - LETI: rlEncoding=1, isXZ=0, 且 tspEncoding=1/2
@@ -149,6 +218,12 @@ public class TableConfig implements Serializable {
      * - LOC_S: 其余情况（isXZ=0 且非 LETI）
      */
     public SpatialIndexKind getSpatialIndexKind() {
+        if (isBMTree()) {
+            return SpatialIndexKind.BMTREE;
+        }
+        if (isLMSFC()) {
+            return SpatialIndexKind.LMSFC;
+        }
         if (isLETI()) {
             return SpatialIndexKind.LETI_LOC_S;
         }

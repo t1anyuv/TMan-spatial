@@ -7,6 +7,7 @@ import constans.IndexEnum;
 import entity.Trajectory;
 import index.CellIndex;
 import index.LETILocSIndex;
+import index.LMSFCIndex;
 import index.LocSIndex;
 import index.XZStarIndex;
 import index.XZLocSIndex;
@@ -265,6 +266,9 @@ public class TrajPutUtil implements Serializable {
             case LOC_S:
                 xzsfc = createLocSIndex(config);
                 break;
+            case LMSFC:
+                xzsfc = createLMSFCLocSIndex(config);
+                break;
             case XZ_STAR:
             default:
                 // XZ_STAR 的主键/候选区间由 XZStarIndex/XZStarSFC 直接生成；
@@ -303,6 +307,14 @@ public class TrajPutUtil implements Serializable {
             case 3:
                 // LETI Index 模式
                 xzsfc = createLETILocSIndex(config);
+                break;
+            case 4:
+                // LMSFC Index 模式
+                xzsfc = createLMSFCLocSIndex(config);
+                break;
+            case 5:
+                xzsfc = createBMTreeIndex(config);
+                break;
         }
         assert xzsfc != null;
         return xzsfc.index(geo, false);
@@ -416,6 +428,46 @@ public class TrajPutUtil implements Serializable {
                     config.getAlpha(), config.getBeta());
         } else {
             return CellIndex.apply((short) config.getResolution(), config.getAlpha(), config.getBeta());
+        }
+    }
+
+    /**
+     * 创建 LMSFCIndex 实例
+     */
+    private static LMSFCIndex createLMSFCLocSIndex(TableConfig config) {
+        if (config.getEnvelope() != null) {
+            return LMSFCIndex.apply(
+                    (short) config.getResolution(),
+                    new Tuple2<>(config.getEnvelope().getXMin(), config.getEnvelope().getXMax()),
+                    new Tuple2<>(config.getEnvelope().getYMin(), config.getEnvelope().getYMax()),
+                    config.getThetaConfig());
+        } else {
+            return LMSFCIndex.apply(
+                    (short) config.getResolution(),
+                    new Tuple2<>(-180.0, 180.0),
+                    new Tuple2<>(-90.0, 90.0),
+                    config.getThetaConfig());
+        }
+    }
+
+    /**
+     * 创建 BMTree 索引
+     */
+    private static XZSFC createBMTreeIndex(TableConfig config) {
+        if (config.getEnvelope() != null) {
+            return index.BMTreeIndex.apply(
+                    (short) config.getResolution(),
+                    new scala.Tuple2<>(config.getEnvelope().getXMin(), config.getEnvelope().getXMax()),
+                    new scala.Tuple2<>(config.getEnvelope().getYMin(), config.getEnvelope().getYMax()),
+                    config.getBMTreeConfigPath(),
+                    config.getBMTreeBitLength());
+        } else {
+            return index.BMTreeIndex.apply(
+                    (short) config.getResolution(),
+                    new scala.Tuple2<>(-180.0, 180.0),
+                    new scala.Tuple2<>(-90.0, 90.0),
+                    config.getBMTreeConfigPath(),
+                    config.getBMTreeBitLength());
         }
     }
 
