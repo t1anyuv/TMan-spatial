@@ -45,6 +45,19 @@ public class DatasetConfig {
     @Getter @Setter
     private String dataBaseDir;    // 轨迹数据所在目录，如 data/tdrive
 
+    // LMSFC 索引配置
+    @Getter
+    @Setter
+    private String thetaConfig; // θ参数配置，例如 "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19"
+
+    // BMTree 索引配置
+    @Getter
+    @Setter
+    private String bmtreeConfigPath; // BMTree配置文件路径，例如 "bmtree/tdrive_bmtree.txt"
+    @Getter
+    @Setter
+    private String bmtreeBitLength; // bit长度配置，例如 "20,20"
+
 
     public DatasetConfig() {
         // 使用默认值
@@ -107,4 +120,56 @@ public class DatasetConfig {
     public String toString() {
         return String.format("%s-%s-%dm", datasetName, distribution, queryRange);
     }
+
+    /**
+     * 获取 LMSFC 的 θ 参数配置
+     * 如果未设置，返回默认配置
+     */
+    public String getThetaConfigOrDefault() {
+        if (thetaConfig == null || thetaConfig.isEmpty()) {
+            // 默认使用前20个层级
+            return "0, 1, 2, 3, 5, 7, 8, 9, 10, 11, 18, 19, 21, 24, 25, 26, 28, 29, 31, 36, 4, 6, 12, 13, 14, 15, 16, 17, 20, 22, 23, 27, 30, 32, 33, 34, 35, 37, 38, 39";
+        }
+        return thetaConfig;
+    }
+
+    /**
+     * 获取 BMTree 配置文件路径
+     * 如果未设置，根据数据集名称返回默认路径
+     */
+    public String getBMTreeConfigPathOrDefault() {
+        if (bmtreeConfigPath == null || bmtreeConfigPath.isEmpty()) {
+            // 根据数据集名称返回默认路径
+            if (datasetName.equalsIgnoreCase(T_DRIVE)) {
+                return "bmtree/tdrive_bmtree.txt";
+            } else if (datasetName.equalsIgnoreCase(CD_TAXI)) {
+                return "bmtree/cd_bmtree.txt";
+            } else {
+                return "bmtree/tdrive_bmtree.txt";
+            }
+        }
+        return bmtreeConfigPath;
+    }
+
+    /**
+     * 获取 BMTree bit长度配置
+     * 如果未设置，返回默认配置
+     */
+    public String getBMTreeBitLengthOrDefault() {
+        if (bmtreeBitLength == null || bmtreeBitLength.isEmpty()) {
+            // 默认配置：2维，每维20bit
+            return "20,20";
+        }
+        return bmtreeBitLength;
+    }
+
+
+
+
+
+
+
+
+
+
 }

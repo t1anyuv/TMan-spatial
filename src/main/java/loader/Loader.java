@@ -523,6 +523,20 @@ public class Loader implements Closeable, Serializable {
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_RL_ENCODING), Bytes.toBytes(config.getRlEncoding()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ADAPTIVE_PARTITION), Bytes.toBytes(config.getAdaptivePartition()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_MAX_SHAPE_BITS), Bytes.toBytes(config.getMaxShapeBits()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_LMSFC), Bytes.toBytes(config.getIsLMSFC()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_THETA_CONFIG), Bytes.toBytes(config.getThetaConfig()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_BMTREE), Bytes.toBytes(config.getIsBMTree()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_BMTREE_CONFIG_PATH), Bytes.toBytes(config.getBMTreeConfigPath()));
+        // 将int[]转换为字符串存储
+        int[] bitLength = config.getBMTreeBitLength();
+        if (bitLength != null && bitLength.length > 0) {
+            StringBuilder bitLengthStr = new StringBuilder();
+            for (int i = 0; i < bitLength.length; i++) {
+                if (i > 0) bitLengthStr.append(",");
+                bitLengthStr.append(bitLength[i]);
+            }
+            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_BMTREE_BIT_LENGTH), Bytes.toBytes(bitLengthStr.toString()));
+        }
         Envelope envelope = config.getEnvelope();
         if (null != envelope) {
             put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_xmin), Bytes.toBytes(envelope.getXMin()));

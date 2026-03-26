@@ -136,7 +136,21 @@ public class ComparisonExperiment {
                 
                 // 构建表配置 - 使用 DatasetConfig 中的参数
                 TableConfig config = TableBuilder.buildConfig(dataset);
-                
+
+                // 为 LMSFC 和 BMTREE 设置特定配置（从 DatasetConfig 传递到 TableConfig）
+                if (method == IndexMethod.LMSFC) {
+                    String thetaConfig = dataset.getThetaConfigOrDefault();
+                    config.setThetaConfig(thetaConfig);
+                    System.out.println("  Setting LMSFC thetaConfig: " + thetaConfig);
+                } else if (method == IndexMethod.BMTREE) {
+                    String bmtreeConfigPath = dataset.getBMTreeConfigPathOrDefault();
+                    String bmtreeBitLength = dataset.getBMTreeBitLengthOrDefault();
+                    config.setBMTreeConfigPath(bmtreeConfigPath);
+                    config.setBMTreeBitLength(bmtreeBitLength);
+                    System.out.println("  Setting BMTree configPath: " + bmtreeConfigPath);
+                    System.out.println("  Setting BMTree bitLength: " + bmtreeBitLength);
+                }
+
                 // 获取数据源路径
                 String dataPath = dataset.getDataFilePath();
                 
@@ -155,6 +169,58 @@ public class ComparisonExperiment {
         }
     }
     
+    /**
+     * 为特定索引方法配置参数
+     * 
+     * @param method  索引方法
+     * @param dataset 数据集配置
+     * @param config  表配置
+     */
+    private void configureIndexSpecificSettings(IndexMethod method, DatasetConfig dataset, TableConfig config) {
+        switch (method) {
+            case LMSFC:
+                configureLMSFC(dataset, config);
+                break;
+            case BMTREE:
+                configureBMTree(dataset, config);
+                break;
+            default:
+                // 其他方法不需要额外配置
+                break;
+        }
+    }
+
+    /**
+     * 配置 LMSFC 索引参数
+     */
+    private void configureLMSFC(DatasetConfig dataset, TableConfig config) {
+        // 获取 θ 参数配置（如果 dataset 中没有设置，使用默认值）
+        String thetaConfig = dataset.getThetaConfigOrDefault();
+
+        System.out.println("Configuring LMSFC index:");
+        System.out.println("  - thetaConfig: " + thetaConfig);
+
+        config.setIsLMSFC(1);
+        config.setThetaConfig(thetaConfig);
+    }
+
+    /**
+     * 配置 BMTree 索引参数
+     */
+    private void configureBMTree(DatasetConfig dataset, TableConfig config) {
+        // 获取 BMTree 配置（如果 dataset 中没有设置，使用默认值）
+        String bmtreeConfigPath = dataset.getBMTreeConfigPathOrDefault();
+        String bmtreeBitLength = dataset.getBMTreeBitLengthOrDefault();
+
+        System.out.println("Configuring BMTree index:");
+        System.out.println("  - configPath: " + bmtreeConfigPath);
+        System.out.println("  - bitLength: " + bmtreeBitLength);
+
+        config.setIsBMTree(1);
+        config.setBMTreeConfigPath(bmtreeConfigPath);
+        config.setBMTreeBitLength(bmtreeBitLength);
+    }
+
     /**
      * 实验完成后清理本次实验创建的表
      */
@@ -264,9 +330,9 @@ public class ComparisonExperiment {
         // 添加要对比的方法
         exp.addMethod(IndexMethod.LETI);
         exp.addMethod(IndexMethod.TSHAPE);
-//        exp.addMethod(IndexMethod.XZ_STAR);
-        // exp.addMethod(IndexMethod.LMSFC);  // 待实现
-        // exp.addMethod(IndexMethod.BMTREE); // 待实现
+        exp.addMethod(IndexMethod.XZ_STAR);
+        exp.addMethod(IndexMethod.LMSFC);  
+        exp.addMethod(IndexMethod.BMTREE); 
         
         // 设置标准实验配置
         exp.setDatasetName(datasetName);

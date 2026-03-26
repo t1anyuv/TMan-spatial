@@ -4,6 +4,8 @@ import com.esri.core.geometry.Envelope;
 import config.TableConfig;
 import constans.IndexEnum;
 import loader.Loader;
+import loader.LMSFCLoader;
+import loader.BMTreeLoader;
 import loader.LetiLoader;
 import preprocess.compress.IIntegerCompress;
 
@@ -108,8 +110,11 @@ public class TableBuilder {
                 createXZStarTable(config);
                 break;
             case LMSFC:
+                createLMSFCTable(config);
+                break;
             case BMTREE:
-                throw new UnsupportedOperationException("Method " + method + " not yet implemented");
+                createBMTreeTable(config);
+                break;
             default:
                 throw new IllegalArgumentException("Unknown method: " + method);
         }
@@ -180,4 +185,92 @@ public class TableBuilder {
             loader.store();
         }
     }
+
+    /**
+     * 创建 LMSFC 表：
+     * - 使用 LMSFCLoader
+     * - 设置 thetaConfig（θ参数配置）
+     * - 使用 LMSFC 索引策略
+     */
+    private void createLMSFCTable(TableConfig config) throws IOException {
+        System.out.println("Using LMSFCLoader...");
+
+        // 从 config 获取 thetaConfig，如果没有则使用默认值
+        String thetaConfig = config.getThetaConfig();
+        if (thetaConfig == null || thetaConfig.isEmpty()) {
+            // 默认 θ 配置（20个层级，可根据需要调整）
+            thetaConfig = "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19";
+            System.out.println("Using default thetaConfig: " + thetaConfig);
+        }
+
+        System.out.println("Config: isLMSFC=1, thetaConfig=" + thetaConfig);
+
+        config.setIsLMSFC(1);
+        config.setThetaConfig(thetaConfig);
+
+        try (LMSFCLoader loader = new LMSFCLoader(config, sourcePath, resultPath)) {
+            loader.store();
+        }
+    }
+
+    /**
+     * 创建 BMTree 表：
+     * - 使用 BMTreeLoader
+     * - 设置 bmtreeConfigPath（配置文件路径）
+     * - 设置 bmtreeBitLength（bit长度配置）
+     * - 使用 BMTree 索引策略
+     */
+    private void createBMTreeTable(TableConfig config) throws IOException {
+        System.out.println("Using BMTreeLoader...");
+
+        // 从 config 获取 BMTree 配置
+        String bmtreeConfigPath = config.getBMTreeConfigPath();
+        int[] bitLength = config.getBMTreeBitLength(); // 注意：这里返回的是 int[]
+
+        // 验证必需的配置
+        if (bmtreeConfigPath == null || bmtreeConfigPath.isEmpty()) {
+            throw new IllegalArgumentException("BMTreeConfigPath is required for BMTree index");
+        }
+
+        // 将 int[] 转换为字符串（参考 BMTreeLoader 的做法）
+        String bmtreeBitLength;
+        if (bitLength == null || bitLength.length == 0) {
+            // 默认 bit 长度配置
+            bmtreeBitLength = "20,20";
+            System.out.println("Using default bmtreeBitLength: " + bmtreeBitLength);
+        } else {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < bitLength.length; i++) {
+                sb.append(bitLength[i]);
+                if (i < bitLength.length - 1) {
+                    sb.append(",");
+                }
+            }
+            bmtreeBitLength = sb.toString();
+        }
+
+        System.out.println("Config: isBMTree=1, configPath=" + bmtreeConfigPath +
+                ", bitLength=" + bmtreeBitLength);
+
+        config.setIsBMTree(1);
+        config.setBMTreeConfigPath(bmtreeConfigPath);
+        config.setBMTreeBitLength(bmtreeBitLength); // 设置字符串格式
+
+        try (BMTreeLoader loader = new BMTreeLoader(config, sourcePath, resultPath)) {
+            loader.store();
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
 }

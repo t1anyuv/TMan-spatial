@@ -399,6 +399,22 @@ public class QueryPlanner implements Closeable {
         SpatialFilter sFilter = (SpatialFilter) primaryFilter;
         TableConfig.SpatialIndexKind kind = tableConfig.getSpatialIndexKind();
         switch (kind) {
+            case LMSFC:
+                // LMSFC 索引需要使用 SpatialWithSFC 的专用方法
+                if (sFilter instanceof filter.SpatialWithSFC) {
+                    ranges = ((filter.SpatialWithSFC) sFilter).getLMSFCRanges(tableName, tableConfig);
+                } else {
+                    throw new IllegalStateException("LMSFC 索引需要使用 SpatialWithSFC 过滤器");
+                }
+                break;
+            case BMTREE:
+                // BMTree 索引需要使用 SpatialWithSFC 的专用方法
+                if (sFilter instanceof filter.SpatialWithSFC) {
+                    ranges = ((filter.SpatialWithSFC) sFilter).getBMTreeRanges(tableName, tableConfig);
+                } else {
+                    throw new IllegalStateException("BMTree 索引需要使用 SpatialWithSFC 过滤器");
+                }
+                break;
             case XZ_LOC_S:
             case XZ_STAR:
                 ranges = sFilter.getXZRanges(tableName, tableConfig);
