@@ -38,9 +38,12 @@ public class QueryUtils implements Cloneable {
         int binNums = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_TIME_BIN_NUMS)));
         int isXZ = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_XZ)));
         int tspEncoding = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_TSP_ENCODING)));
-        int isRLEncoding = 0;
+        int orderEncodingType = 0;
         try {
-            isRLEncoding = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_RL_ENCODING)));
+            byte[] orderEncodingBytes = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ORDER_ENCODING_TYPE));
+            if (orderEncodingBytes != null) {
+                orderEncodingType = Bytes.toInt(orderEncodingBytes);
+            }
         } catch (Exception ignored) {
         }
         int adaptivePartition = 0;
@@ -53,6 +56,21 @@ public class QueryUtils implements Cloneable {
             maxShapeBits = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_MAX_SHAPE_BITS)));
         } catch (Exception ignored) {
         }
+        String letiOrderName = readString(result, META_TABLE_LETI_ORDER_NAME);
+        String letiOrderDataset = readString(result, META_TABLE_LETI_ORDER_DATASET);
+        String letiOrderDistribution = readString(result, META_TABLE_LETI_ORDER_DISTRIBUTION);
+        String letiOrderVersion = readString(result, META_TABLE_LETI_ORDER_VERSION);
+        long letiOrderCount = readLong(result, META_TABLE_LETI_ORDER_COUNT);
+        long letiActiveCells = readLong(result, META_TABLE_LETI_ACTIVE_CELLS);
+        long letiTotalCells = readLong(result, META_TABLE_LETI_TOTAL_CELLS);
+        int letiMaxLevel = readInt(result, META_TABLE_LETI_MAX_LEVEL);
+        int letiGlobalAlpha = readInt(result, META_TABLE_LETI_GLOBAL_ALPHA);
+        int letiGlobalBeta = readInt(result, META_TABLE_LETI_GLOBAL_BETA);
+        Envelope letiOrderBoundary = readEnvelope(result,
+                META_TABLE_LETI_BOUNDARY_XMIN,
+                META_TABLE_LETI_BOUNDARY_YMIN,
+                META_TABLE_LETI_BOUNDARY_XMAX,
+                META_TABLE_LETI_BOUNDARY_YMAX);
         int isLMSFC = 0;
         try {
             isLMSFC = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_LMSFC)));
@@ -90,6 +108,14 @@ public class QueryUtils implements Cloneable {
         } catch (Exception ignored) {
         }
         String redisHost = Bytes.toString(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_REDIS)));
+        String orderDefinitionPath = null;
+        try {
+            byte[] orderDefinitionPathBytes = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ORDER_DEFINITION_PATH));
+            if (orderDefinitionPathBytes != null) {
+                orderDefinitionPath = Bytes.toString(orderDefinitionPathBytes);
+            }
+        } catch (Exception ignored) {
+        }
         Short shards = null;
         String compression = Bytes.toString(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_compression)));
         Envelope envelope = null;
@@ -115,16 +141,75 @@ public class QueryUtils implements Cloneable {
         tableConfig.setRedisHost(redisHost);
         tableConfig.setShards(shards);
         tableConfig.setIsXZ(isXZ);
-        tableConfig.setRlEncoding(isRLEncoding);
+        tableConfig.setOrderEncodingType(orderEncodingType);
         tableConfig.setTspEncoding(tspEncoding);
+        tableConfig.setOrderDefinitionPath(orderDefinitionPath);
         tableConfig.setAdaptivePartition(adaptivePartition);
         tableConfig.setMaxShapeBits(maxShapeBits);
+        tableConfig.setLetiOrderName(letiOrderName);
+        tableConfig.setLetiOrderDataset(letiOrderDataset);
+        tableConfig.setLetiOrderDistribution(letiOrderDistribution);
+        tableConfig.setLetiOrderVersion(letiOrderVersion);
+        tableConfig.setLetiOrderCount(letiOrderCount);
+        tableConfig.setLetiActiveCells(letiActiveCells);
+        tableConfig.setLetiTotalCells(letiTotalCells);
+        tableConfig.setLetiMaxLevel(letiMaxLevel);
+        tableConfig.setLetiGlobalAlpha(letiGlobalAlpha);
+        tableConfig.setLetiGlobalBeta(letiGlobalBeta);
+        tableConfig.setLetiOrderBoundary(letiOrderBoundary);
         tableConfig.setIsLMSFC(isLMSFC);
         tableConfig.setThetaConfig(thetaConfig);
         tableConfig.setIsBMTree(isBMTree);
         tableConfig.setBMTreeConfigPath(bmtreeConfigPath);
         tableConfig.setBMTreeBitLength(bmtreeBitLength);
         return tableConfig;
+    }
+
+    private static String readString(Result result, String qualifier) {
+        try {
+            byte[] value = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(qualifier));
+            return value == null ? null : Bytes.toString(value);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static int readInt(Result result, String qualifier) {
+        try {
+            byte[] value = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(qualifier));
+            return value == null ? 0 : Bytes.toInt(value);
+        } catch (Exception ignored) {
+            return 0;
+        }
+    }
+
+    private static long readLong(Result result, String qualifier) {
+        try {
+            byte[] value = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(qualifier));
+            return value == null ? 0L : Bytes.toLong(value);
+        } catch (Exception ignored) {
+            return 0L;
+        }
+    }
+
+    private static Envelope readEnvelope(Result result, String xminKey, String yminKey, String xmaxKey, String ymaxKey) {
+        try {
+            byte[] xminBytes = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(xminKey));
+            byte[] yminBytes = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(yminKey));
+            byte[] xmaxBytes = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(xmaxKey));
+            byte[] ymaxBytes = result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(ymaxKey));
+            if (xminBytes == null || yminBytes == null || xmaxBytes == null || ymaxBytes == null) {
+                return null;
+            }
+            return new Envelope(
+                    Bytes.toDouble(xminBytes),
+                    Bytes.toDouble(yminBytes),
+                    Bytes.toDouble(xmaxBytes),
+                    Bytes.toDouble(ymaxBytes)
+            );
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     @Override

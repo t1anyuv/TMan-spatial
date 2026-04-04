@@ -24,13 +24,21 @@ import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Response;
 import redis.clients.jedis.resps.Tuple;
 import scala.Tuple2;
+import index.RangeDebugBridge;
+import index.RangeStatsBridge;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static client.Constants.DEFAULT_CF;
+import static client.Constants.GEOM_X;
+import static client.Constants.GEOM_Y;
+import static client.Constants.O_ID;
+import static client.Constants.T_ID;
 import static constans.IndexEnum.INDEX_TYPE.*;
+import static org.apache.hadoop.hbase.util.Bytes.toBytes;
 
 /**
  * 查询规划器
@@ -76,6 +84,30 @@ public class QueryPlanner implements Closeable {
      */
     @Getter
     protected int lastRowRangeCount = 0;
+
+    @Getter
+    protected long lastRedisAccessCount = 0L;
+
+    @Getter
+    protected long lastRedisShapeFilterRateScaled = 0L;
+
+    @Getter
+    protected int lastQuadCodeRangeCount = 0;
+
+    @Getter
+    protected int lastQOrderRangeCount = 0;
+
+    @Getter
+    protected long lastIndexRangeComputeNs = 0L;
+
+    @Getter
+    protected long lastRowRangeBuildNs = 0L;
+
+    @Getter
+    protected long lastScannerOpenNs = 0L;
+
+    @Getter
+    protected List<MultiRowRangeFilter.RowRange> lastComputedRowRanges = new ArrayList<>();
 
     /**
      * 构造函数
@@ -182,26 +214,34 @@ public class QueryPlanner implements Closeable {
         if (rowRanges.isEmpty()) {
             System.out.println("[QueryPlanner] No row ranges found, returning empty result.");
             this.lastRowRangeCount = 0;
+            this.lastScannerOpenNs = 0L;
+            this.lastComputedRowRanges = new ArrayList<>();
             return new Tuple2<>(0, null);
         }
 
         this.lastRowRangeCount = rowRanges.size();
+        this.lastComputedRowRanges = new ArrayList<>(rowRanges);
 
         finalFilters.add(new MultiRowRangeFilter(rowRanges));
         finalFilters.addAll(filters);
         FilterList filterList = new FilterList(finalFilters);
         Scan scan = new Scan();
         scan.setCaching(1000);
+        applyScanColumnPruning(scan);
         scan.setFilter(filterList);
         ResultScanner returnScanner = null;
-        int size = 0;
         try {
+            long scannerOpenStartNs = System.nanoTime();
             returnScanner = hTable.getScanner(scan);
+            this.lastScannerOpenNs = System.nanoTime() - scannerOpenStartNs;
         } catch (IOException e) {
             System.err.println("[QueryPlanner] Error executing query: " + e.getMessage());
+            this.lastScannerOpenNs = 0L;
         }
         // 保存访问的单元格数到成员变量
         this.lastVisitedCells = indexResult.visitedCells;
+        this.lastRedisAccessCount = indexResult.redisAccessCount;
+        this.lastRedisShapeFilterRateScaled = indexResult.redisShapeFilterRateScaled;
         int indexRangeCount = indexResult.ranges.size();
         return new Tuple2<>(indexRangeCount, returnScanner);
     }
@@ -322,22 +362,46 @@ public class QueryPlanner implements Closeable {
         
         SpatialFilter sFilter = (SpatialFilter) secondaryFilter;
         TableConfig.SpatialIndexKind kind = tableConfig.getSpatialIndexKind();
+        long indexRangeStartNs = System.nanoTime();
         switch (kind) {
-            case XZ_LOC_S:
+            case XZPlus:
             case XZ_STAR:
                 ranges = sFilter.getXZRanges(tableName, tableConfig);
                 break;
-            case LETI_LOC_S:
-            case LOC_S:
+            case LETI:
+            case TShape:
             default:
                 ranges = sFilter.getRanges(tableName, tableConfig);
                 break;
         }
+        this.lastIndexRangeComputeNs = System.nanoTime() - indexRangeStartNs;
 
-        int visitedCells = calculateVisitedCells(ranges);
+        RangeStatsBridge.Stats stats = null;
+        switch (kind) {
+            case LETI:
+                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.LETI);
+                break;
+            case TShape:
+                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.TSHAPE);
+                break;
+            case XZ_STAR:
+                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.XZ_STAR);
+                break;
+            default:
+                break;
+        }
+
+        long visitedCellsLong = (stats != null) ? stats.visitedCellsByContainIntersect() : calculateVisitedCells(ranges);
+        long redisAccessCount = (stats != null) ? stats.redisAccessCount : 0L;
+        long redisShapeFilterRateScaled = (stats != null) ? stats.redisShapeFilterRate : 0L;
+
+        int visitedCells = clampToInt(visitedCellsLong);
+        updateDebugRangeCounts(kind);
+        long rowRangeBuildStartNs = System.nanoTime();
         secondaryRangesToRowkeys(tableName + "_" + SPATIAL.getIndexName(), ranges, rowRanges);
+        this.lastRowRangeBuildNs = System.nanoTime() - rowRangeBuildStartNs;
 
-        return new IndexRangeResult(ranges, rowRanges, visitedCells);
+        return new IndexRangeResult(ranges, rowRanges, visitedCells, redisAccessCount, redisShapeFilterRateScaled);
     }
 
     /**
@@ -398,6 +462,7 @@ public class QueryPlanner implements Closeable {
         
         SpatialFilter sFilter = (SpatialFilter) primaryFilter;
         TableConfig.SpatialIndexKind kind = tableConfig.getSpatialIndexKind();
+        long indexRangeStartNs = System.nanoTime();
         switch (kind) {
             case LMSFC:
                 // LMSFC 索引需要使用 SpatialWithSFC 的专用方法
@@ -415,22 +480,44 @@ public class QueryPlanner implements Closeable {
                     throw new IllegalStateException("BMTree 索引需要使用 SpatialWithSFC 过滤器");
                 }
                 break;
-            case XZ_LOC_S:
+            case XZPlus:
             case XZ_STAR:
                 ranges = sFilter.getXZRanges(tableName, tableConfig);
                 break;
-            case LETI_LOC_S:
-            case LOC_S:
+            case LETI:
+            case TShape:
             default:
                 ranges = sFilter.getRanges(tableName, tableConfig);
                 break;
         }
-        
-        int visitedCells = calculateVisitedCells(ranges);
+        this.lastIndexRangeComputeNs = System.nanoTime() - indexRangeStartNs;
 
+        RangeStatsBridge.Stats stats = null;
+        switch (kind) {
+            case LETI:
+                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.LETI);
+                break;
+            case TShape:
+                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.TSHAPE);
+                break;
+            case XZ_STAR:
+                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.XZ_STAR);
+                break;
+            default:
+                break;
+        }
+
+        long visitedCellsLong = (stats != null) ? stats.visitedCellsByContainIntersect() : calculateVisitedCells(ranges);
+        long redisAccessCount = (stats != null) ? stats.redisAccessCount : 0L;
+        long redisShapeFilterRateScaled = (stats != null) ? stats.redisShapeFilterRate : 0L;
+
+        int visitedCells = clampToInt(visitedCellsLong);
+        updateDebugRangeCounts(kind);
+        long rowRangeBuildStartNs = System.nanoTime();
         rangesToRowkey(ranges, rowRanges);
+        this.lastRowRangeBuildNs = System.nanoTime() - rowRangeBuildStartNs;
 
-        return new IndexRangeResult(ranges, rowRanges, visitedCells);
+        return new IndexRangeResult(ranges, rowRanges, visitedCells, redisAccessCount, redisShapeFilterRateScaled);
     }
 
     /**
@@ -579,6 +666,61 @@ public class QueryPlanner implements Closeable {
         return rowRanges;
     }
 
+    private void applyScanColumnPruning(Scan scan) {
+        if (!canApplyLetiColumnPruning()) {
+            return;
+        }
+
+        byte[] cf = toBytes(DEFAULT_CF);
+        scan.addColumn(cf, toBytes(O_ID));
+        scan.addColumn(cf, toBytes(T_ID));
+        scan.addColumn(cf, toBytes(GEOM_X));
+        scan.addColumn(cf, toBytes(GEOM_Y));
+    }
+
+    private boolean canApplyLetiColumnPruning() {
+        if (!(primaryFilter instanceof SpatialFilter)) {
+            return false;
+        }
+        if (tableConfig == null || tableConfig.getSpatialIndexKind() != TableConfig.SpatialIndexKind.LETI) {
+            return false;
+        }
+        if (filters == null || filters.size() != 1) {
+            return false;
+        }
+        return secondaryFilter == null || secondaryFilter.isEmpty();
+    }
+
+    private static int clampToInt(long value) {
+        if (value <= Integer.MIN_VALUE) return Integer.MIN_VALUE;
+        if (value >= Integer.MAX_VALUE) return Integer.MAX_VALUE;
+        return (int) value;
+    }
+
+    private void updateDebugRangeCounts(TableConfig.SpatialIndexKind kind) {
+        switch (kind) {
+            case LETI: {
+                RangeDebugBridge.DebugRanges debugRanges = RangeDebugBridge.getLastLETI();
+                this.lastQuadCodeRangeCount = (debugRanges == null || debugRanges.quadCodeRanges == null)
+                        ? 0 : debugRanges.quadCodeRanges.size();
+                this.lastQOrderRangeCount = (debugRanges == null || debugRanges.qOrderRanges == null)
+                        ? 0 : debugRanges.qOrderRanges.size();
+                break;
+            }
+            case TShape: {
+                RangeDebugBridge.DebugRanges debugRanges = RangeDebugBridge.getLastTShape();
+                this.lastQuadCodeRangeCount = (debugRanges == null || debugRanges.quadCodeRanges == null)
+                        ? 0 : debugRanges.quadCodeRanges.size();
+                this.lastQOrderRangeCount = 0;
+                break;
+            }
+            default:
+                this.lastQuadCodeRangeCount = 0;
+                this.lastQOrderRangeCount = 0;
+                break;
+        }
+    }
+
     /**
      * 判断过滤器是否匹配表的主索引类型
      * <p>
@@ -609,15 +751,19 @@ public class QueryPlanner implements Closeable {
          * 由 ranges 直接推导，表示访问成本近似值。
          */
         final int visitedCells;
+        final long redisAccessCount;
+        final long redisShapeFilterRateScaled;
 
-        IndexRangeResult(List<IndexRange> ranges, List<MultiRowRangeFilter.RowRange> rowRanges, int visitedCells) {
+        IndexRangeResult(List<IndexRange> ranges, List<MultiRowRangeFilter.RowRange> rowRanges, int visitedCells, long redisAccessCount, long redisShapeFilterRateScaled) {
             this.ranges = ranges;
             this.rowRanges = rowRanges;
             this.visitedCells = visitedCells;
+            this.redisAccessCount = redisAccessCount;
+            this.redisShapeFilterRateScaled = redisShapeFilterRateScaled;
         }
 
         IndexRangeResult(List<IndexRange> ranges, List<MultiRowRangeFilter.RowRange> rowRanges) {
-            this(ranges, rowRanges, 0);
+            this(ranges, rowRanges, 0, 0L, 0L);
         }
     }
 
@@ -629,6 +775,14 @@ public class QueryPlanner implements Closeable {
         this.secondaryFilter = new ArrayList<>();
         this.lastVisitedCells = 0;
         this.lastRowRangeCount = 0;
+        this.lastRedisAccessCount = 0L;
+        this.lastRedisShapeFilterRateScaled = 0L;
+        this.lastQuadCodeRangeCount = 0;
+        this.lastQOrderRangeCount = 0;
+        this.lastIndexRangeComputeNs = 0L;
+        this.lastRowRangeBuildNs = 0L;
+        this.lastScannerOpenNs = 0L;
+        this.lastComputedRowRanges = new ArrayList<>();
     }
 
     @Override
