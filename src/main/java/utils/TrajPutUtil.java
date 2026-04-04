@@ -197,11 +197,11 @@ public class TrajPutUtil implements Serializable {
                 case XZ_STAR:
                     indexValue = getXZStarSpatialIndexValue(geoJTS, config);
                     break;
-                case XZ_LOC_S:
+                case XZPlus:
                     indexValue = getXZSpatialIndexValue(geo, config);
                     break;
-                case LETI_LOC_S:
-                case LOC_S:
+                case LETI:
+                case TShape:
                 default:
                     indexValue = getSpatialIndexValue(geo, config);
                     break;
@@ -256,14 +256,14 @@ public class TrajPutUtil implements Serializable {
     public static Tuple3<Object, Object, Object> getSpatialIndex(MultiPoint geo, TableConfig config) {
         XZSFC xzsfc;
         switch (config.getSpatialIndexKind()) {
-            case LETI_LOC_S:
-                assert !config.isXZ();
+            case LETI:
+                assert !config.isXZPlus();
                 xzsfc = createLETILocSIndex(config);
                 break;
-            case XZ_LOC_S:
+            case XZPlus:
                 xzsfc = createXZLocSIndex(config);
                 break;
-            case LOC_S:
+            case TShape:
                 xzsfc = createLocSIndex(config);
                 break;
             case LMSFC:
@@ -507,7 +507,7 @@ public class TrajPutUtil implements Serializable {
      * @param config 表配置
      * @return RowKey 字节数组
      */
-    private static byte[] buildRowkey(long index, String tid, TableConfig config) {
+    static byte[] buildRowkey(long index, String tid, TableConfig config) {
         byte[] tidBytes = Bytes.toBytes(tid);
         byte[] rowkeyCore = new byte[8 + tidBytes.length];
         ByteArraysWrapper.writeLong(index, rowkeyCore, 0);

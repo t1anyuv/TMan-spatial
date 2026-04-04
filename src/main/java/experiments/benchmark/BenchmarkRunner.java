@@ -1,6 +1,11 @@
 package experiments.benchmark;
 
-import experiments.benchmark.QueryLoader.QueryWindow;
+import experiments.benchmark.config.DatasetConfig;
+import experiments.benchmark.config.IndexMethod;
+import experiments.benchmark.io.BenchmarkArtifacts;
+import experiments.benchmark.io.QueryLoader;
+import experiments.benchmark.io.QueryLoader.QueryWindow;
+import experiments.benchmark.model.ExperimentStats;
 import experiments.tman.BMTreeSpatialQuery;
 import experiments.tman.BasicQuery;
 import experiments.tman.LMSFCSpatialQuery;
@@ -9,8 +14,10 @@ import experiments.tman.SpatialQuery;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 基准测试执行器 - 运行单个方法的基准测试
@@ -18,9 +25,15 @@ import java.util.List;
 public class BenchmarkRunner {
 
     private final String outputDir;
+    private final boolean aggregateRangeOutputs;
     
     public BenchmarkRunner(String outputDir) {
+        this(outputDir, false);
+    }
+
+    public BenchmarkRunner(String outputDir, boolean aggregateRangeOutputs) {
         this.outputDir = outputDir;
+        this.aggregateRangeOutputs = aggregateRangeOutputs;
 
         // 确保输出目录存在
         try {
@@ -68,21 +81,24 @@ public class BenchmarkRunner {
 
         // 构建查询执行器
         String queryString = queryLoader.toQueryString(queries);
-        String[] args = new String[]{tableName, queryString, getOutputPath(method, dataset)};
+        String perRangeResultPath = getPerRangeOutputPath(method, dataset);
+        String[] args = new String[]{tableName, queryString, perRangeResultPath};
 
         // 执行查询
         try {
             BasicQuery query = createQueryExecutor(method);
-            if (query != null) {
-                long startTime = System.currentTimeMillis();
-                query.executeQuery(args);
-                long totalTime = System.currentTimeMillis() - startTime;
+            long startTime = System.currentTimeMillis();
+            query.executeQuery(args);
+            long totalTime = System.currentTimeMillis() - startTime;
 
-                // 从CSV结果文件读取统计信息
-                loadStatsFromResult(stats, getOutputPath(method, dataset), queries.size());
-
-                System.out.println("Benchmark completed in " + totalTime + " ms");
+            // 从CSV结果文件读取统计信息
+            loadStatsFromResult(stats, perRangeResultPath, queries.size());
+            stats.setIndexSizeKb(BenchmarkArtifacts.estimateIndexSizeKb(tableName, "127.0.0.1"));
+            if (aggregateRangeOutputs) {
+                appendRangeSummary(method, dataset, stats);
             }
+
+            System.out.println("Benchmark completed in " + totalTime + " ms");
         } catch (Exception e) {
             System.err.println("Benchmark failed: " + e.getMessage());
         }
@@ -113,43 +129,54 @@ public class BenchmarkRunner {
 
     /**
      * 从结果文件加载统计信息
-     * 指标与 BasicQuery.saveResult 的 type 列一致：time, logicIndexRanges, rowKeyRanges, candidates, finalSize, vc
-     * （兼容旧文件中的 indexRanges 作为逻辑区间行）
      */
     private void loadStatsFromResult(ExperimentStats stats, String resultPath, int queryCount) {
         try {
             List<String> lines = Files.readAllLines(Paths.get(resultPath));
-            // 跳过CSV头，解析统计行：type,min,max,avg,mid,per70,per80,per90
+            // 跳过CSV头，兼容两种格式：
+            // 1. 直接查询历史格式：type,min,max,avg,mid,per70,per80,per90
+            // 2. 简化格式：type,avg
             for (int i = 1; i < lines.size(); i++) {
                 String line = lines.get(i);
                 String[] parts = line.split(",", -1);
-                if (parts.length < 4) {
+                if (parts.length < 2) {
                     continue;
                 }
                 String type = parts[0].trim();
-                long min = Long.parseLong(parts[1].trim());
-                long max = Long.parseLong(parts[2].trim());
-                long avg = Long.parseLong(parts[3].trim());
+                int avgIndex = parts.length >= 4 ? 3 : 1;
+                long avg = Long.parseLong(parts[avgIndex].trim());
 
                 switch (type) {
                     case "time":
-                        stats.getLatencyStats().addAggregated(min, max, avg, queryCount);
+                        stats.getLatencyStats().addAggregated(avg, avg, avg, queryCount);
                         break;
                     case "logicIndexRanges":
                     case "indexRanges":
-                        stats.getLogicIndexRangeStats().addAggregated(min, max, avg, queryCount);
+                        stats.getLogicIndexRangeStats().addAggregated(avg, avg, avg, queryCount);
+                        break;
+                    case "quadCodeRanges":
+                        stats.getQuadCodeRangeStats().addAggregated(avg, avg, avg, queryCount);
+                        break;
+                    case "qOrderRanges":
+                        stats.getQOrderRangeStats().addAggregated(avg, avg, avg, queryCount);
                         break;
                     case "rowKeyRanges":
-                        stats.getRowKeyRangeStats().addAggregated(min, max, avg, queryCount);
+                        stats.getRowKeyRangeStats().addAggregated(avg, avg, avg, queryCount);
                         break;
                     case "candidates":
-                        stats.getCandidatesStats().addAggregated(min, max, avg, queryCount);
+                        stats.getCandidatesStats().addAggregated(avg, avg, avg, queryCount);
                         break;
                     case "finalSize":
-                        stats.getFinalResultStats().addAggregated(min, max, avg, queryCount);
+                        stats.getFinalResultStats().addAggregated(avg, avg, avg, queryCount);
                         break;
                     case "vc":
-                        stats.getVisitedCellsStats().addAggregated(min, max, avg, queryCount);
+                        stats.getVisitedCellsStats().addAggregated(avg, avg, avg, queryCount);
+                        break;
+                    case "redisAccessCount":
+                        stats.getRedisAccessCountStats().addAggregated(avg, avg, avg, queryCount);
+                        break;
+                    case "redisShapeFilterRateScaled":
+                        stats.getRedisShapeFilterRateScaledStats().addAggregated(avg, avg, avg, queryCount);
                         break;
                     default:
                         break;
@@ -160,7 +187,62 @@ public class BenchmarkRunner {
         }
     }
 
-    private String getOutputPath(IndexMethod method, DatasetConfig dataset) {
-        return String.format("%s/%s_%s.csv", outputDir, method.getShortName(), dataset.toString());
+    private String getPerRangeOutputPath(IndexMethod method, DatasetConfig dataset) {
+        return String.format("%s/%s_%s-%s-%dm.csv",
+                outputDir,
+                method.getShortName(),
+                dataset.getDatasetName(),
+                dataset.getDistribution(),
+                dataset.getQueryRange());
+    }
+
+    private String getRangeSummaryOutputPath(IndexMethod method, DatasetConfig dataset) {
+        return String.format("%s/%s_%s-%s.csv",
+                outputDir,
+                method.getShortName(),
+                dataset.getDatasetName(),
+                dataset.getDistribution());
+    }
+
+    private void appendRangeSummary(IndexMethod method, DatasetConfig dataset, ExperimentStats stats) {
+        Path path = Paths.get(getRangeSummaryOutputPath(method, dataset));
+        boolean exists = Files.exists(path);
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(path.toFile(), true))) {
+            if (!exists) {
+                writer.write(getRangeSummaryHeader());
+                writer.newLine();
+            }
+            writer.write(toRangeSummaryRow(stats));
+            writer.newLine();
+        } catch (IOException e) {
+            System.err.println("Error appending range summary to " + path + ": " + e.getMessage());
+        }
+    }
+
+    private String getRangeSummaryHeader() {
+        return "Method,Dataset,Distribution,QueryRange_Meters,"
+                + "Latency_Avg,LogicalIndexRanges_Avg,QuadCodeRanges_Avg,QOrderRanges_Avg,"
+                + "RowKeyRanges_Avg,Candidates_Avg,FinalResultCount_Avg,VisitedCells_Avg,"
+                + "RedisAccessCount_Avg,RedisShapeFilterRate_Avg,IndexSize_KB";
+    }
+
+    private String toRangeSummaryRow(ExperimentStats stats) {
+        return String.format(Locale.US,
+                "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+                stats.getMethod().getShortName(),
+                stats.getDataset().getDatasetName(),
+                stats.getDataset().getDistribution(),
+                stats.getDataset().getQueryRange(),
+                stats.getLatencyStats().getAvg(),
+                stats.getLogicIndexRangeStats().getAvg(),
+                stats.getQuadCodeRangeStats().getAvg(),
+                stats.getQOrderRangeStats().getAvg(),
+                stats.getRowKeyRangeStats().getAvg(),
+                stats.getCandidatesStats().getAvg(),
+                stats.getFinalResultStats().getAvg(),
+                stats.getVisitedCellsStats().getAvg(),
+                stats.getRedisAccessCountStats().getAvg(),
+                stats.getRedisShapeFilterRateScaledStats().getAvg(),
+                stats.getIndexSizeKb());
     }
 }

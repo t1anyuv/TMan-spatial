@@ -189,8 +189,8 @@ public class SpatialFilter extends FilterBase {
             );
         }
         try (Jedis jedis = RedisPoolManager.getResource(config.getRedisHost())) {
-            if (Boolean.getBoolean("tman.leti.useTShapeFlowRanges")) {
-                return letiLocSIndex.rangesWithTShapeFlow(
+            if (Boolean.getBoolean("tman.leti.useNativeQOrderTreeRanges")) {
+                return letiLocSIndex.rangesWithNativeQOrderTree(
                         envelope.xmin,
                         envelope.ymin,
                         envelope.xmax,

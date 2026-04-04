@@ -10,6 +10,14 @@ import java.io.IOException;
 
 public class LetiStoring {
     public static void main(String[] args) throws IOException {
+        if (args.length < 17) {
+            throw new IllegalArgumentException(
+                    "Usage: LetiStoring <sourcePath> <resolution> <alpha> <beta> <timeBin> <timeBinNums> " +
+                            "<compressType> <xmin> <ymin> <xmax> <ymax> <shards> <pIndex> <tableName> <redisHost> " +
+                            "<adaptivePartition:0|1> <resultPath> [orderDefinitionPath]"
+            );
+        }
+
         String sourcePath = args[0];
         int resolution = Integer.parseInt(args[1]);
         int alpha = Integer.parseInt(args[2]);
@@ -29,6 +37,7 @@ public class LetiStoring {
         String redisHost = args[14];
         int adaptivePartition = Integer.parseInt(args[15]);
         String resultPath = args[16];
+        String orderDefinitionPath = args.length >= 18 ? args[17] : null;
 
         TableConfig tableConfig = new TableConfig(
                 pIndex, resolution, alpha, beta, timeBin, timeBinNums, compressType,
@@ -37,6 +46,9 @@ public class LetiStoring {
         tableConfig.setTableName(tableName);
         tableConfig.setRedisHost(redisHost);
         tableConfig.setAdaptivePartition(adaptivePartition);
+        if (orderDefinitionPath != null && !orderDefinitionPath.trim().isEmpty()) {
+            tableConfig.setOrderDefinitionPath(orderDefinitionPath.trim());
+        }
 
         try (LetiLoader loader = new LetiLoader(tableConfig, sourcePath, resultPath)) {
             loader.store();

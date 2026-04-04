@@ -43,6 +43,8 @@ import static utils.TrajPutUtil.getSpatialIndex;
 
 
 public class Loader implements Closeable, Serializable {
+    private static final String LETI_UNION_MASK_SUFFIX = ":leti:union_mask";
+
     final TableConfig config;
     final String tableName;
     final String sourcePath;
@@ -139,15 +141,6 @@ public class Loader implements Closeable, Serializable {
     /**
      * 获取轨迹的二级索引映射
      * <p>
-     *
-     *
-     * @param traj   轨迹字符串，格式为 "oid-time-wkt"
-     * @param rowKey 主表的行键
-     * @return 二级索引映射，key 为索引表名，value 为 (索引值, 行键) 的元组
-     */
-    /**
-     * 获取轨迹的二级索引映射
-     * <p>
      * 当前版本仅支持空间主索引，不需要二级索引。
      *
      * @param traj   轨迹字符串，格式为 "oid-time-wkt"
@@ -166,12 +159,6 @@ public class Loader implements Closeable, Serializable {
      * 删除 Redis 中的二级索引表
      * <p>
      * 在存储新数据前清理旧的索引数据。
-     * 当前版本仅支持空间主索引，因此只删除 OID 二级索引和统计表。
-     */
-    /**
-     * 删除 Redis 中的二级索引表
-     * <p>
-     * 在存储新数据前清理旧的索引数据。
      * 当前版本仅支持空间主索引，只需删除统计表。
      */
     public void deleteSecondaryTable() {
@@ -183,6 +170,7 @@ public class Loader implements Closeable, Serializable {
 
         // 删除统计表
         pipelined.del(tableName);
+        pipelined.del(tableName + LETI_UNION_MASK_SUFFIX);
 
         pipelined.sync();
         pipelined.close();
@@ -520,9 +508,36 @@ public class Loader implements Closeable, Serializable {
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_REDIS), Bytes.toBytes(config.getRedisHost()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_XZ), Bytes.toBytes(config.getIsXZ()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_TSP_ENCODING), Bytes.toBytes(config.getTspEncoding()));
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_RL_ENCODING), Bytes.toBytes(config.getRlEncoding()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ORDER_ENCODING_TYPE), Bytes.toBytes(config.getOrderEncodingType()));
+        if (config.getOrderDefinitionPath() != null && !config.getOrderDefinitionPath().isEmpty()) {
+            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ORDER_DEFINITION_PATH), Bytes.toBytes(config.getOrderDefinitionPath()));
+        }
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ADAPTIVE_PARTITION), Bytes.toBytes(config.getAdaptivePartition()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_MAX_SHAPE_BITS), Bytes.toBytes(config.getMaxShapeBits()));
+        if (config.getLetiOrderName() != null && !config.getLetiOrderName().isEmpty()) {
+            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_NAME), Bytes.toBytes(config.getLetiOrderName()));
+        }
+        if (config.getLetiOrderDataset() != null && !config.getLetiOrderDataset().isEmpty()) {
+            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_DATASET), Bytes.toBytes(config.getLetiOrderDataset()));
+        }
+        if (config.getLetiOrderDistribution() != null && !config.getLetiOrderDistribution().isEmpty()) {
+            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_DISTRIBUTION), Bytes.toBytes(config.getLetiOrderDistribution()));
+        }
+        if (config.getLetiOrderVersion() != null && !config.getLetiOrderVersion().isEmpty()) {
+            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_VERSION), Bytes.toBytes(config.getLetiOrderVersion()));
+        }
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_COUNT), Bytes.toBytes(config.getLetiOrderCount()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ACTIVE_CELLS), Bytes.toBytes(config.getLetiActiveCells()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_TOTAL_CELLS), Bytes.toBytes(config.getLetiTotalCells()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_MAX_LEVEL), Bytes.toBytes(config.getLetiMaxLevel()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_GLOBAL_ALPHA), Bytes.toBytes(config.getLetiGlobalAlpha()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_GLOBAL_BETA), Bytes.toBytes(config.getLetiGlobalBeta()));
+        if (config.getLetiOrderBoundary() != null) {
+            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_BOUNDARY_XMIN), Bytes.toBytes(config.getLetiOrderBoundary().getXMin()));
+            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_BOUNDARY_XMAX), Bytes.toBytes(config.getLetiOrderBoundary().getXMax()));
+            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_BOUNDARY_YMIN), Bytes.toBytes(config.getLetiOrderBoundary().getYMin()));
+            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_BOUNDARY_YMAX), Bytes.toBytes(config.getLetiOrderBoundary().getYMax()));
+        }
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_LMSFC), Bytes.toBytes(config.getIsLMSFC()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_THETA_CONFIG), Bytes.toBytes(config.getThetaConfig()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_BMTREE), Bytes.toBytes(config.getIsBMTree()));

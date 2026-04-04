@@ -1,5 +1,9 @@
 package experiments.benchmark;
 
+import experiments.benchmark.config.DatasetConfig;
+import experiments.benchmark.config.IndexMethod;
+import experiments.benchmark.model.ExperimentStats;
+
 /**
  * 快速基准测试工具 - 用于快速测试单个配置
  * <p>
@@ -55,18 +59,12 @@ public class QuickBenchmark {
         System.out.printf("Method: %s%n", stats.getMethod().getShortName());
         System.out.printf("Dataset: %s%n", stats.getDataset().toString());
         System.out.println();
-        System.out.printf("Latency (ms) - Avg: %d, Min: %d, Max: %d%n",
-            stats.getLatencyStats().getAvg(),
-            stats.getLatencyStats().getMin(),
-            stats.getLatencyStats().getMax());
+        System.out.printf("Latency (ms) - Avg: %d%n", stats.getLatencyStats().getAvg());
         System.out.printf("Logic index ranges (SFC) - Avg: %d%n", stats.getLogicIndexRangeStats().getAvg());
         System.out.printf("Row-key scan ranges - Avg: %d%n", stats.getRowKeyRangeStats().getAvg());
         System.out.printf("Candidates - Avg: %d%n", stats.getCandidatesStats().getAvg());
         System.out.printf("VC (Visited Cells) - Avg: %.2f%n", stats.getVisitedCellsStats().getAvgDouble());
-        System.out.printf("Final Size - Avg: %d, Min: %d, Max: %d%n",
-            stats.getFinalResultStats().getAvg(),
-            stats.getFinalResultStats().getMin(),
-            stats.getFinalResultStats().getMax());
+        System.out.printf("Final Size - Avg: %d%n", stats.getFinalResultStats().getAvg());
         System.out.println(repeatString("-"));
     }
     

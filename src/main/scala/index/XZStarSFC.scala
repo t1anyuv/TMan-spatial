@@ -236,6 +236,11 @@ class XZStarSFC(
     remaining.add(levelStop)
 
     var level: Short = 1
+
+    // XZ_STAR 本身的“准确 VC”：包含（contain）+ 相交（intersect）的 ElementKNN 计数
+    var containedQuadCount: Long = 0L
+    var intersectQuadCount: Long = 0L
+
     while (!remaining.isEmpty) {
       val next = remaining.poll()
       if (next.eq(levelStop)) {
@@ -246,10 +251,12 @@ class XZStarSFC(
       } else {
         // checkValue
         if (next.isContained(queryWindow)) {
+          containedQuadCount += 1L
           val min = next.elementCode + 1L
           val max = next.elementCode + next.IS(level.toInt) - 1L
           ranges.add(IndexRange(min, max, contained = true))
         } else if (next.insertion(queryWindow)) {
+          intersectQuadCount += 1L
           ranges.addAll(next.insertCodes(queryWindow))
           if (level < g) {
             next.split()
@@ -281,8 +288,24 @@ class XZStarSFC(
         i += 1
       }
       result.append(current)
+      XZStarSFC.setLastRangeStats(XZStarSFC.RangeStats(containedQuadCount, intersectQuadCount, 0L))
+      RangeStatsBridge.setLast(
+        RangeStatsBridge.Kind.XZ_STAR,
+        containedQuadCount,
+        intersectQuadCount,
+        0L,
+        0L
+      )
       result.asJava
     } else {
+      XZStarSFC.setLastRangeStats(XZStarSFC.RangeStats(containedQuadCount, intersectQuadCount, 0L))
+      RangeStatsBridge.setLast(
+        RangeStatsBridge.Kind.XZ_STAR,
+        containedQuadCount,
+        intersectQuadCount,
+        0L,
+        0L
+      )
       ranges
     }
   }
@@ -290,6 +313,28 @@ class XZStarSFC(
 
 object XZStarSFC extends Serializable {
   case class QueryWindow(xmin: Double, ymin: Double, xmax: Double, ymax: Double)
+
+  /**
+    * Java 侧用于输出 VC 的“准确代价口径”
+    * - visitedCells = containQuadCount + intersectQuadCount
+    * - XZ_STAR 不使用 Redis 访问统计，redisAccessCount 固定为 0
+    */
+  case class RangeStats(containedQuadCount: Long, intersectQuadCount: Long, redisAccessCount: Long) extends Serializable
+
+  private val lastStatsThreadLocal = new ThreadLocal[RangeStats]()
+
+  def setLastRangeStats(stats: RangeStats): Unit = {
+    lastStatsThreadLocal.set(stats)
+  }
+
+  def getLastVisitedCellsByContainIntersect(): Long = {
+    val s = lastStatsThreadLocal.get()
+    if (s == null) 0L else (s.containedQuadCount + s.intersectQuadCount)
+  }
+
+  def clearLastRangeStats(): Unit = {
+    lastStatsThreadLocal.remove()
+  }
 
   /**
    * 工厂方法：供 wrapper（XZStarIndex）创建核心实现。

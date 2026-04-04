@@ -22,18 +22,37 @@ class LETILocSIndex(
 ) extends LocSIndex(maxR, xBounds, yBounds, alpha, beta)
     with Serializable {
 
-  private val resolvedOrderingPath = LetiOrderResolver.resolveClasspathResource(orderDefinitionPath)
-
-  private val mapper: LSFCReader.LSFCMapper = loadFromClasspath(resolvedOrderingPath)
+  private val mapper: LSFCReader.LSFCMapper =
+    loadFromClasspath(LetiOrderResolver.resolveClasspathResource(orderDefinitionPath))
 
   private val quadCodeOrder: util.Map[lang.Long, Integer] = mapper.quadCodeOrder
-
   private val quadCodeParentQuad: util.Map[lang.Long, ParentQuad] = mapper.quadCodeParentQuad
+  private val validQuadCodes: util.Set[lang.Long] = mapper.validQuadCodes
 
-  val validQuadCodes: util.Set[lang.Long] = mapper.validQuadCodes
   private val sortedQuadCodes: java.util.NavigableSet[lang.Long] = mapper.sortedQuadCodes
   private val containedIntervalCache =
     new java.util.concurrent.ConcurrentHashMap[lang.Long, LETILocSIndex.ContainedIntervals]()
+
+  private case class QOrderTreeNode(
+                                     quadCode: Long,
+                                     qOrder: Int,
+                                     parentQuad: ParentQuad,
+                                     level: Int,
+                                     subtreeUpper: Long,
+                                     eeXmin: Double,
+                                     eeYmin: Double,
+                                     eeXmax: Double,
+                                     eeYmax: Double,
+                                     partitionAlpha: Int,
+                                     partitionBeta: Int,
+                                     minScore: Long,
+                                     maxScore: Long,
+                                     children: java.util.ArrayList[QOrderTreeNode] = new java.util.ArrayList[QOrderTreeNode](),
+                                     var containedIntervals: LETILocSIndex.ContainedIntervals = LETILocSIndex.ContainedIntervals(
+                                       new java.util.ArrayList[IndexRange](),
+                                       new java.util.ArrayList[IndexRange]()
+                                     )
+                                   )
 
   /**
    * 最大形状位数，用于统一编码空间
@@ -58,6 +77,8 @@ class LETILocSIndex(
    */
   private val maxContainedOrderRunLength: Int =
     java.lang.Integer.getInteger("tman.leti.maxContainedOrderRunLength", 32)
+
+  private val qOrderRoots: java.util.List[QOrderTreeNode] = buildQOrderTree()
 
   /**
    * 计算查询窗口对应的索引范围
@@ -285,118 +306,165 @@ class LETILocSIndex(
 
   /**
    * 与 TShape 默认 ranges 流程对齐的 LETI 版本。
-   *
-   * 目标：
-   * - 保持与 TShape `LocSIndex.ranges(...)` 相同的遍历/判定/Redis 查询流程
-   * - 仅保留 LETI 编码本身带来的必要差异：
-   *   1. 相交 quad 通过 qOrder 分区访问 Redis
-   *   2. 返回的 rowkey 区间基于 (qOrder << moveBits) | shapeOrder
-   *   3. 完全覆盖 quad 需要投影到对应 qOrder 集合后再生成区间
-   *
-   * 因此这里不会使用 LETI 专属的 union-mask、Redis range cache、最终 merge 等额外优化。
    */
-  def rangesWithTShapeFlow(
-      lng1: Double,
-      lat1: Double,
-      lng2: Double,
-      lat2: Double,
-      jedis: Jedis,
-      indexTable: String
-  ): java.util.List[IndexRange] = {
+  def rangesWithNativeQOrderTree(
+                                  lng1: Double,
+                                  lat1: Double,
+                                  lng2: Double,
+                                  lat2: Double,
+                                  jedis: Jedis,
+                                  indexTable: String
+                                ): java.util.List[IndexRange] = {
+    val debug = java.lang.Boolean.getBoolean("tman.debug.leti")
+    val debugLimit = 20
+
+    var printedIntersect = 0
+    var printedResult = 0
+    var redisTupleTotal: Long = 0L
+    var redisTuplePassed: Long = 0L
+    var redisAccessCount: Long = 0L
+    val unionMasks = LETILocSIndex.getCachedUnionMasks(jedis, indexTable)
+
     val queryWindow = QueryWindow(lng1, lat1, lng2, lat2)
     val ranges = new java.util.ArrayList[IndexRange](100)
     val quadCodeRanges = new java.util.ArrayList[IndexRange](256)
     val qOrderRanges = new java.util.ArrayList[IndexRange](256)
-    val remaining = new java.util.ArrayDeque[TShapeEE](200)
-    val levelStop = TShapeEE(-1, -1, -1, -1, -1, -1)
+    val remaining = new java.util.ArrayDeque[QOrderTreeNode](math.max(16, qOrderRoots.size()))
 
-    root.split()
-    root.children.asScala.foreach(remaining.add)
-    remaining.add(levelStop)
-    var level: Short = 1
+    qOrderRoots.asScala.foreach(remaining.add)
 
     var containedQuadCount = 0
     var intersectQuadCount = 0
-    var redisAccessCount: Long = 0L
 
-    def checkValue(quad: TShapeEE, level: Short): Unit = {
-      val quadCode = quad.elementCode
-      if (validQuadCodes.contains(quadCode)) {
-        if (quad.isContained(queryWindow)) {
-          containedQuadCount += 1
-          val qMin = quadCode
-          val qMax = quadCode + IS(level)
-          quadCodeRanges.add(IndexRange(qMin, qMax, contained = true))
+    val pp = jedis.pipelined()
+    case class IntersectTask(
+                              node: QOrderTreeNode,
+                              signature: Long,
+                              cacheKey: String,
+                              cachedTuples: java.util.List[redis.clients.jedis.resps.Tuple],
+                              response: redis.clients.jedis.Response[_ <: java.util.Collection[
+                                redis.clients.jedis.resps.Tuple
+                              ]]
+                            )
+    val intersectTasks = new java.util.ArrayList[IntersectTask]()
 
-          val containedIntervals = getContainedIntervalsWithoutSplit(quad)
-          ranges.addAll(containedIntervals.rowKeyRanges)
-          qOrderRanges.addAll(containedIntervals.qOrderRanges)
-        } else if (quad.insertion(queryWindow)) {
-          intersectQuadCount += 1
-          quadCodeRanges.add(IndexRange(quadCode, quadCode, contained = false))
+    def enqueueIntersectNode(node: QOrderTreeNode): Unit = {
+      val signature = calculateSignature(queryWindow, node)
+      val unionMask = unionMasks.get(lang.Integer.valueOf(node.qOrder))
 
-          val quadOrder = quadCodeOrder.get(quadCode)
-          val parentQuad = quadCodeParentQuad.get(quadCode)
+      qOrderRanges.add(IndexRange(node.qOrder.toLong, node.qOrder.toLong, contained = false))
 
-          assert(quadOrder != null, s"Quad order should not be null for quadCode: $quadCode")
-          assert(parentQuad != null, s"Parent quad should not be null for quadCode: $quadCode")
+      if (unionMask != null && (signature & unionMask.longValue()) == 0L) {
+        if (debug && printedIntersect < debugLimit) {
+          println(
+            s"[LETI native dbg] skip intersect by union-mask: qOrder=${node.qOrder}, quadCode=${node.quadCode}, signature=$signature, unionMask=${unionMask.longValue()}"
+          )
+          printedIntersect += 1
+        }
+        return
+      }
 
-          qOrderRanges.add(IndexRange(quadOrder.toLong, quadOrder.toLong, contained = false))
+      val cacheKey = LETILocSIndex.rangeCacheKey(indexTable, node.minScore, node.maxScore)
+      val cachedTuples = LETILocSIndex.getCachedRedisRange(cacheKey)
 
-          val minScore = quadOrder.toLong << moveBits
-          val maxScore = ((quadOrder + 1L) << moveBits) - 1L
-          redisAccessCount += 1L
-          val result = jedis.zrangeByScoreWithScores(indexTable, minScore, maxScore)
-          if (result != null) {
-            val signature = calculateSignature(queryWindow, parentQuad)
-            val seenOriginIndex = new util.HashSet[lang.Long]()
-            val it = result.iterator()
-            while (it.hasNext) {
-              val elem = it.next()
-              val payload = elem.getBinaryElement
-              val originIndex = Bytes.toLong(payload, 8)
-              if (seenOriginIndex.add(lang.Long.valueOf(originIndex))) {
-                val shapeCode = originIndex & ((1L << moveBits) - 1L)
-                if ((signature & shapeCode) != 0L) {
-                  val shapeOrder = Bytes.toInt(payload, 4)
-                  val rowKey = (quadOrder.toLong << moveBits) | shapeOrder
-                  ranges.add(IndexRange(rowKey, rowKey, contained = false))
-                }
-              }
+      if (cachedTuples != null) {
+        intersectTasks.add(IntersectTask(node, signature, cacheKey, cachedTuples, null))
+      } else {
+        val response = pp.zrangeByScoreWithScores(indexTable, node.minScore, node.maxScore)
+        redisAccessCount += 1L
+        intersectTasks.add(IntersectTask(node, signature, cacheKey, null, response))
+      }
+
+      if (debug && printedIntersect < debugLimit) {
+        println(
+          s"[LETI native dbg] enqueue intersect: qOrder=${node.qOrder}, quadCode=${node.quadCode}, level=${node.level}, signature=$signature"
+        )
+        printedIntersect += 1
+      }
+    }
+
+    def processPipelineResults(): Unit = {
+      val taskIt = intersectTasks.iterator()
+      while (taskIt.hasNext) {
+        val task = taskIt.next()
+        val result =
+          if (task.cachedTuples != null) {
+            task.cachedTuples
+          } else {
+            val loaded = task.response.get()
+            if (loaded != null) {
+              val loadedList = new java.util.ArrayList[redis.clients.jedis.resps.Tuple](loaded)
+              LETILocSIndex.putCachedRedisRange(task.cacheKey, loadedList)
+              loadedList
+            } else {
+              null
+            }
+          }
+        if (result != null) {
+          if (debug && printedResult < debugLimit) {
+            println(
+              s"[LETI native dbg] process intersect: qOrder=${task.node.qOrder}, signature=${task.signature}, redisTupleCount=${result.size()}"
+            )
+            printedResult += 1
+          }
+          val it = result.iterator()
+          var passedInTask = 0L
+          while (it.hasNext) {
+            val elem = it.next()
+            val payload = elem.getBinaryElement
+            val originIndex = Bytes.toLong(payload, 8)
+            val shapeCode = originIndex & ((1L << moveBits) - 1L)
+
+            redisTupleTotal += 1
+            if ((task.signature & shapeCode) != 0L) {
+              val shapeOrder = Bytes.toInt(payload, 4)
+              val rowKey = (task.node.qOrder.toLong << moveBits) | shapeOrder
+              ranges.add(IndexRange(rowKey, rowKey, contained = false))
+              redisTuplePassed += 1
+              passedInTask += 1L
             }
           }
 
-          if (level < maxR) {
-            quad.split()
-            quad.children.asScala.foreach(remaining.add)
+          if (debug && passedInTask > 0 && printedResult < debugLimit) {
+            println(
+              s"[LETI native dbg] passed in task: qOrder=${task.node.qOrder}, passedTuples=$passedInTask"
+            )
+            printedResult += 1
           }
         }
-      } else if (level < maxR) {
-        quad.split()
-        quad.children.asScala.foreach(remaining.add)
       }
     }
 
     while (!remaining.isEmpty) {
-      val next = remaining.poll()
-      if (next.eq(levelStop)) {
-        if (!remaining.isEmpty && level < maxR) {
-          level = (level + 1).toShort
-          remaining.add(levelStop)
-        }
-      } else {
-        checkValue(next, level)
+      val node = remaining.poll()
+      if (isContained(queryWindow, node)) {
+        containedQuadCount += 1
+        quadCodeRanges.add(IndexRange(node.quadCode, node.subtreeUpper, contained = true))
+        ranges.addAll(node.containedIntervals.rowKeyRanges)
+        qOrderRanges.addAll(node.containedIntervals.qOrderRanges)
+      } else if (insertion(queryWindow, node)) {
+        intersectQuadCount += 1
+        quadCodeRanges.add(IndexRange(node.quadCode, node.quadCode, contained = false))
+        enqueueIntersectNode(node)
+        node.children.asScala.foreach(remaining.add)
       }
     }
 
+    pp.sync()
+    processPipelineResults()
+    pp.close()
     jedis.close()
+
+    val merged = mergeRanges(ranges)
+    val redisShapeFilterRate =
+      if (redisTupleTotal > 0L) (redisTuplePassed * 100L) / redisTupleTotal else 0L
 
     LETILocSIndex.setLastRangeStats(
       LETILocSIndex.RangeStats(
         containedQuadCount.toLong,
         intersectQuadCount.toLong,
         redisAccessCount,
-        0L
+        redisShapeFilterRate
       )
     )
     RangeStatsBridge.setLast(
@@ -404,10 +472,10 @@ class LETILocSIndex(
       containedQuadCount.toLong,
       intersectQuadCount.toLong,
       redisAccessCount,
-      0L
+      redisShapeFilterRate
     )
     RangeDebugBridge.setLastLETI(mergeRanges(quadCodeRanges), mergeRanges(qOrderRanges))
-    ranges
+    merged
   }
 
   private def getContainedIntervals(quad: TShapeEE): LETILocSIndex.ContainedIntervals = {
@@ -542,6 +610,124 @@ class LETILocSIndex(
    * @param parentQuad 父 quad 信息（包含基础单元格边界和自适应参数）
    * @return 签名位掩码，每一位表示一个网格单元是否被查询窗口覆盖
    */
+  private def buildQOrderTree(): java.util.List[QOrderTreeNode] = {
+    val roots = new java.util.ArrayList[QOrderTreeNode]()
+    if (validQuadCodes == null || validQuadCodes.isEmpty) {
+      return roots
+    }
+
+    val nodes = validQuadCodes.asScala.toSeq
+      .flatMap { codeBox =>
+        val code = codeBox.longValue()
+        val order = quadCodeOrder.get(codeBox)
+        val parent = quadCodeParentQuad.get(codeBox)
+        if (order == null || parent == null) {
+          None
+        } else {
+          val cellWidth = parent.xmax - parent.xmin
+          val cellHeight = parent.ymax - parent.ymin
+          val eeXmin = parent.xmin
+          val eeYmin = parent.ymin
+          val eeXmax = parent.xmin + alpha * cellWidth
+          val eeYmax = parent.ymin + beta * cellHeight
+          val partitionAlpha = if (adaptivePartition) parent.alpha else alpha
+          val partitionBeta = if (adaptivePartition) parent.beta else beta
+          val minScore = order.longValue() << moveBits
+          val maxScore = ((order.longValue() + 1L) << moveBits) - 1L
+          Some(
+            QOrderTreeNode(
+              quadCode = code,
+              qOrder = order.intValue(),
+              parentQuad = parent,
+              level = parent.level,
+              subtreeUpper = code + IS(parent.level)
+              ,
+              eeXmin = eeXmin,
+              eeYmin = eeYmin,
+              eeXmax = eeXmax,
+              eeYmax = eeYmax,
+              partitionAlpha = partitionAlpha,
+              partitionBeta = partitionBeta,
+              minScore = minScore,
+              maxScore = maxScore
+            )
+          )
+        }
+      }
+      .sortBy(_.quadCode)
+
+    val stack = new java.util.ArrayDeque[QOrderTreeNode]()
+    nodes.foreach { node =>
+      while (!stack.isEmpty && node.quadCode > stack.peekLast().subtreeUpper) {
+        stack.removeLast()
+      }
+      if (stack.isEmpty) {
+        roots.add(node)
+      } else {
+        stack.peekLast().children.add(node)
+      }
+      stack.addLast(node)
+    }
+
+    roots.asScala.foreach(populateContainedIntervals)
+    roots
+  }
+
+  private def populateContainedIntervals(node: QOrderTreeNode): java.util.BitSet = {
+    val orderBits = new java.util.BitSet(math.max(orderCountHint, 64))
+    orderBits.set(node.qOrder)
+    node.children.asScala.foreach { child =>
+      orderBits.or(populateContainedIntervals(child))
+    }
+    node.containedIntervals = buildIntervalsFromBitSet(orderBits)
+    orderBits
+  }
+
+  private def insertion(window: QueryWindow, node: QOrderTreeNode): Boolean = {
+    window.xmax >= node.eeXmin &&
+      window.ymax >= node.eeYmin &&
+      window.xmin <= node.eeXmax &&
+      window.ymin <= node.eeYmax
+  }
+
+  private def isContained(window: QueryWindow, node: QOrderTreeNode): Boolean = {
+    window.xmin <= node.eeXmin &&
+      window.ymin <= node.eeYmin &&
+      window.xmax >= node.eeXmax &&
+      window.ymax >= node.eeYmax
+  }
+
+  private def calculateSignature(qw: QueryWindow, node: QOrderTreeNode): Long = {
+    var signature = 0L
+
+    val gridCellW = (node.eeXmax - node.eeXmin) / node.partitionAlpha
+    val gridCellH = (node.eeYmax - node.eeYmin) / node.partitionBeta
+
+    val xs = math.max(0, math.floor((qw.xmin - node.eeXmin) / gridCellW).toInt)
+    val xe = math.min(node.partitionAlpha, math.floor((qw.xmax - node.eeXmin) / gridCellW).toInt + 1)
+
+    val ys = math.max(0, math.floor((qw.ymin - node.eeYmin) / gridCellH).toInt)
+    val ye = math.min(node.partitionBeta, math.floor((qw.ymax - node.eeYmin) / gridCellH).toInt + 1)
+
+    var i = xs
+    while (i < xe) {
+      var j = ys
+      while (j < ye) {
+        val minX = node.eeXmin + gridCellW * i
+        val minY = node.eeYmin + gridCellH * j
+        val maxX = minX + gridCellW
+        val maxY = minY + gridCellH
+
+        if (qw.insertion(minX, minY, maxX, maxY)) {
+          signature |= (1L << (i * node.partitionBeta + j))
+        }
+        j += 1
+      }
+      i += 1
+    }
+    signature
+  }
+
   private def calculateSignature(qw: QueryWindow, parentQuad: ParentQuad): Long = {
     var signature = 0L
 
@@ -613,84 +799,6 @@ class LETILocSIndex(
    * @param childrenOrders 完全包含的 quadOrder 列表
    * @return 合并后的索引范围列表
    */
-  private def mergeContainRanges(childrenOrders: util.List[Integer]): java.util.List[IndexRange] = {
-
-    val orders = new Array[Int](childrenOrders.size())
-
-    var idx = 0
-    val it = childrenOrders.iterator()
-    while (it.hasNext) {
-      orders(idx) = it.next().intValue()
-      idx += 1
-    }
-
-    val result: java.util.ArrayList[IndexRange] = new java.util.ArrayList[IndexRange]()
-
-    if (orders.nonEmpty) {
-      java.util.Arrays.sort(orders)
-
-      var start = orders(0)
-      var prev = start
-
-      var i = 1
-      while (i < orders.length) {
-        val cur = orders(i)
-        if (cur == prev + 1) {
-          prev = cur
-        } else {
-          result.add(
-            IndexRange(
-              start.toLong << moveBits,
-              ((prev.toLong + 1) << moveBits) - 1L,
-              contained = true
-            )
-          )
-          start = cur
-          prev = cur
-        }
-        i += 1
-      }
-
-      result.add(
-        IndexRange(start.toLong << moveBits, ((prev.toLong + 1) << moveBits) - 1L, contained = true)
-      )
-    }
-
-    result
-  }
-
-  private def mergeOrderIntervals(ordersList: util.List[Integer]): java.util.List[IndexRange] = {
-    val result = new java.util.ArrayList[IndexRange]()
-    if (ordersList == null || ordersList.isEmpty) return result
-
-    val orders = new Array[Int](ordersList.size())
-    var idx = 0
-    val it = ordersList.iterator()
-    while (it.hasNext) {
-      orders(idx) = it.next().intValue()
-      idx += 1
-    }
-    java.util.Arrays.sort(orders)
-    var start = orders(0)
-    var prev = start
-    var i = 1
-    while (i < orders.length) {
-      val cur = orders(i)
-      if (cur == prev) {
-        // duplicate qOrder, ignore for coverage intervals
-      } else if (cur == prev + 1) {
-        prev = cur
-      } else {
-        result.add(IndexRange(start.toLong, prev.toLong, contained = true))
-        start = cur
-        prev = cur
-      }
-      i += 1
-    }
-    result.add(IndexRange(start.toLong, prev.toLong, contained = true))
-    result
-  }
-
   /**
    * 合并重叠或相邻的索引范围
    *

@@ -3,6 +3,7 @@ package loader;
 import com.esri.core.geometry.*;
 import config.TableConfig;
 import utils.ByteArraysWrapper;
+import utils.LetiOrderResolver;
 import utils.LSFCReader;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Put;
@@ -28,6 +29,8 @@ import static utils.TrajPutUtil.getPutWithIndex;
 import static utils.TrajPutUtil.getSpatialIndex;
 
 public class LetiLoader extends Loader {
+    private static final String LETI_UNION_MASK_SUFFIX = ":leti:union_mask";
+
     Map<Long, Integer> quadCodeOrder;
     Map<Long, LSFCReader.ParentQuad> quadCodeParentQuad;
     int maxShapeBits;
@@ -45,9 +48,11 @@ public class LetiLoader extends Loader {
         super(config, tableName, sourcePath, resultPath);
         // 设置 LETI 索引的固定配置
         config.setIsXZ(0);
-        config.setRlEncoding(1);
+        config.setOrderEncodingType(1);
         config.setTspEncoding(1);
-        LSFCReader.LSFCMapper mapper = loadFromClasspath("RLOrder.json");
+        String orderingPath = LetiOrderResolver.resolveClasspathResource(config.getOrderDefinitionPath());
+        config.setOrderDefinitionPath(orderingPath);
+        LSFCReader.LSFCMapper mapper = loadFromClasspath(orderingPath);
         quadCodeOrder = mapper.quadCodeOrder;
         quadCodeParentQuad = mapper.getQuadCodeParentQuad();
         maxShapeBits = mapper.metadata != null ? mapper.metadata.maxShapeBits : config.getAlpha() * config.getBeta();
@@ -55,13 +60,14 @@ public class LetiLoader extends Loader {
             maxShapeBits = config.getAlpha() * config.getBeta();
         }
         config.setMaxShapeBits(maxShapeBits);
+        applyLetiMeta(config, orderingPath, mapper);
     }
 
     /**
      * 构造函数：使用配置中的表名
      * 自动设置 LETI 索引的固定配置：
-     * - isXZ = 0（不使用 XZ 编码）
-     * - rlEncoding = 1（使用 RL 编码）
+     * - isXZPlus = 0（不使用 XZ 编码）
+     * - orderEncodingType = 1（使用 RL 编码）
      * - tspEncoding = 1（使用 TSP 编码）
      *
      * @param config 表配置
@@ -74,10 +80,12 @@ public class LetiLoader extends Loader {
 
         // 设置 LETI 索引的固定配置
         config.setIsXZ(0);
-        config.setRlEncoding(1);
+        config.setOrderEncodingType(1);
         config.setTspEncoding(1);
 
-        LSFCReader.LSFCMapper rlOrderingData = loadFromClasspath("RLOrder.json");
+        String orderingPath = LetiOrderResolver.resolveClasspathResource(config.getOrderDefinitionPath());
+        config.setOrderDefinitionPath(orderingPath);
+        LSFCReader.LSFCMapper rlOrderingData = loadFromClasspath(orderingPath);
         quadCodeOrder = rlOrderingData.quadCodeOrder;
         quadCodeParentQuad = rlOrderingData.quadCodeParentQuad;
         maxShapeBits = rlOrderingData.metadata != null ? rlOrderingData.metadata.maxShapeBits : config.getAlpha() * config.getBeta();
@@ -85,6 +93,35 @@ public class LetiLoader extends Loader {
             maxShapeBits = config.getAlpha() * config.getBeta();
         }
         config.setMaxShapeBits(maxShapeBits);
+        applyLetiMeta(config, orderingPath, rlOrderingData);
+    }
+
+    private static void applyLetiMeta(TableConfig config,
+                                      String orderingPath,
+                                      LSFCReader.LSFCMapper mapper) {
+        LetiOrderResolver.LetiOrderDescriptor descriptor = LetiOrderResolver.resolveDescriptor(orderingPath);
+        config.setOrderDefinitionPath(descriptor.canonicalPath);
+        config.setLetiOrderName(descriptor.orderName);
+        config.setLetiOrderDataset(descriptor.dataset);
+        config.setLetiOrderDistribution(descriptor.distribution);
+
+        if (mapper.metadata != null) {
+            config.setLetiOrderVersion(mapper.metadata.version);
+            config.setLetiOrderCount(mapper.metadata.orderCount);
+            config.setLetiActiveCells(mapper.metadata.active_cells);
+            config.setLetiTotalCells(mapper.metadata.total_cells);
+            config.setLetiMaxLevel(mapper.metadata.max_level);
+            config.setLetiGlobalAlpha(mapper.metadata.global_alpha);
+            config.setLetiGlobalBeta(mapper.metadata.global_beta);
+            if (mapper.metadata.boundary != null) {
+                config.setLetiOrderBoundary(new Envelope(
+                        mapper.metadata.boundary.getXMin(),
+                        mapper.metadata.boundary.getYMin(),
+                        mapper.metadata.boundary.getXMax(),
+                        mapper.metadata.boundary.getYMax()
+                ));
+            }
+        }
     }
 
     @Override
@@ -121,10 +158,12 @@ public class LetiLoader extends Loader {
                         return new Tuple2<>(quadOrderInParent, new Tuple2<>(indexResult.shapeCodeInParent, rawTraj));
                     });
 
+            JavaPairRDD<Long, TrajShapeAgg> aggregatedByOrderRDD =
+                    quadToShapeTrajRDD.aggregateByKey(new TrajShapeAgg(), TrajShapeAgg::add, TrajShapeAgg::merge)
+                            .persist(StorageLevel.DISK_ONLY());
 
             JavaRDD<Tuple3<Put, Map<String, Tuple2<Long, byte[]>>, List<KeyValue>>> indexedRDD =
-                    quadToShapeTrajRDD.aggregateByKey(new TrajShapeAgg(), TrajShapeAgg::add, TrajShapeAgg::merge)
-                            .flatMap(entry -> {
+                    aggregatedByOrderRDD.flatMap(entry -> {
                                 long quadOrder = entry._1;
                                 TrajShapeAgg agg = entry._2;
 
@@ -168,6 +207,34 @@ public class LetiLoader extends Loader {
                                 return out.iterator();
                             })
                             .persist(StorageLevel.DISK_ONLY());
+
+            try (Jedis jedis = new Jedis(config.getRedisHost(), 6379, 60000)) {
+                jedis.del(tableName + LETI_UNION_MASK_SUFFIX);
+            }
+
+            aggregatedByOrderRDD.foreachPartition(v -> {
+                int size = 0;
+                Jedis jedis = new Jedis(config.getRedisHost(), 6379, 60000);
+                Pipeline pipelined = jedis.pipelined();
+                String unionMaskKey = tableName + LETI_UNION_MASK_SUFFIX;
+                while (v.hasNext()) {
+                    Tuple2<Long, TrajShapeAgg> entry = v.next();
+                    long quadOrder = entry._1;
+                    TrajShapeAgg agg = entry._2;
+
+                    long unionMask = 0L;
+                    for (Long shape : agg.shapes) {
+                        unionMask |= shape;
+                    }
+                    pipelined.hset(unionMaskKey, Long.toString(quadOrder), Long.toString(unionMask));
+                    if (++size % 2000 == 0) {
+                        pipelined.sync();
+                    }
+                }
+                pipelined.sync();
+                pipelined.close();
+                jedis.close();
+            });
 
             indexedRDD.mapToPair(entry -> {
                         Map<String, Tuple2<Long, byte[]>> secondaryIndexMap = entry._2();

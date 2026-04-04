@@ -1,6 +1,7 @@
 package experiments.tman;
 
 import config.TableConfig;
+import filter.SpatialFilter;
 import query.CountPlanner;
 import query.QueryPlanner;
 import utils.QueryUtils;
@@ -45,36 +46,35 @@ public abstract class BasicQuery {
      * <p>
      * 指标说明：
      * - time       : 查询执行时间（毫秒）
-     * - logicIndexRanges: 逻辑索引区间数（SFC 上 IndexRange 条数）
+     * - quadCodeRanges  : quadCode 区间数（RangeDebugBridge 统计）
+     * - qOrderRanges    : qOrder 区间数（LETI 专用，其他方法通常为 0）
      * - rowKeyRanges    : HBase MultiRowRangeFilter 使用的行键区间条数
      * - candidates      : 未经过空间过滤前的候选行键数量（CountPlanner 的结果）
      * - finalSize       : 最终返回的结果数量（经过空间过滤后的结果）
      * - vc              : 访问的单元格数（Visited Cells）
      * <p>
      * 统计值说明：
-     * - min   : 所有样本中的最小值
-     * - max   : 所有样本中的最大值
-     * - avg   : 所有样本的算术平均值
-     * - mid   : 中位数（排序后中间位置的值）
-     * - per70 : 70 分位数（排序后 70% 位置的值）
-     * - per80 : 80 分位数
-     * - per90 : 90 分位数
+     * - min/max/avg/mid/per70/per80/per90 : 与历史直接查询输出保持一致
      *
      * @param timeStatistic       查询时间统计列表
      * @param sizeStatistic       最终结果数量统计列表
      * @param candidatesStatistic 候选数量统计列表
-     * @param logicIndexRangeSize 逻辑 IndexRange 条数统计列表
+     * @param logicIndexRangeStatistic 逻辑 IndexRange 条数统计列表
      * @param rowKeyRangeSize     行键 RowRange 条数统计列表
      * @param vcStatistic         访问单元格数统计列表
      * @param filePath            输出文件路径
      * @throws IOException 如果写入文件时发生错误
      */
     public static void saveResult(SortedList<Long> timeStatistic,
+                                  SortedList<Long> logicIndexRangeStatistic,
                                   SortedList<Long> sizeStatistic,
                                   SortedList<Long> candidatesStatistic,
-                                  SortedList<Long> logicIndexRangeSize,
+                                  SortedList<Long> quadCodeRangeSize,
+                                  SortedList<Long> qOrderRangeSize,
                                   SortedList<Long> rowKeyRangeSize,
                                   SortedList<Long> vcStatistic,
+                                  SortedList<Long> redisAccessCountStatistic,
+                                  SortedList<Long> redisShapeFilterRateScaledStatistic,
                                   String filePath) throws IOException {
         // 确保父目录存在
         Path path = Paths.get(filePath);
@@ -85,42 +85,40 @@ public abstract class BasicQuery {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
             writer.write(CSV_HEADER);
 
-            // 查询时间统计
-            Tuple7<Long, Long, Long, Long, Long, Long, Long> timeStats = getStatistic(timeStatistic);
-            writer.write(String.format(CSV_FORMAT, "time",
-                    timeStats._1(), timeStats._2(), timeStats._3(), timeStats._4(),
-                    timeStats._5(), timeStats._6(), timeStats._7()));
+            writeStatisticRow(writer, "time", timeStatistic);
 
-            // 逻辑索引区间数（SFC IndexRange）
-            Tuple7<Long, Long, Long, Long, Long, Long, Long> logicStats = getStatistic(logicIndexRangeSize);
-            writer.write(String.format(CSV_FORMAT, "logicIndexRanges",
-                    logicStats._1(), logicStats._2(), logicStats._3(), logicStats._4(),
-                    logicStats._5(), logicStats._6(), logicStats._7()));
+            // 保持直接查询旧口径字段名：indexRanges
+            writeStatisticRow(writer, "indexRanges", logicIndexRangeStatistic);
 
-            // HBase 扫描行键区间数
-            Tuple7<Long, Long, Long, Long, Long, Long, Long> rowKeyStats = getStatistic(rowKeyRangeSize);
-            writer.write(String.format(CSV_FORMAT, "rowKeyRanges",
-                    rowKeyStats._1(), rowKeyStats._2(), rowKeyStats._3(), rowKeyStats._4(),
-                    rowKeyStats._5(), rowKeyStats._6(), rowKeyStats._7()));
+            writeStatisticRow(writer, "quadCodeRanges", quadCodeRangeSize);
 
-            // 未经过空间过滤前的候选数量统计
-            Tuple7<Long, Long, Long, Long, Long, Long, Long> candStats = getStatistic(candidatesStatistic);
-            writer.write(String.format(CSV_FORMAT, "candidates",
-                    candStats._1(), candStats._2(), candStats._3(), candStats._4(),
-                    candStats._5(), candStats._6(), candStats._7()));
+            writeStatisticRow(writer, "qOrderRanges", qOrderRangeSize);
 
-            // 最终返回结果数量统计
-            Tuple7<Long, Long, Long, Long, Long, Long, Long> sizeStats = getStatistic(sizeStatistic);
-            writer.write(String.format(CSV_FORMAT, "finalSize",
-                    sizeStats._1(), sizeStats._2(), sizeStats._3(), sizeStats._4(),
-                    sizeStats._5(), sizeStats._6(), sizeStats._7()));
+            writeStatisticRow(writer, "rowKeyRanges", rowKeyRangeSize);
 
-            // 访问单元格数统计（VC）
-            Tuple7<Long, Long, Long, Long, Long, Long, Long> vcStats = getStatistic(vcStatistic);
-            writer.write(String.format(CSV_FORMAT, "vc",
-                    vcStats._1(), vcStats._2(), vcStats._3(), vcStats._4(),
-                    vcStats._5(), vcStats._6(), vcStats._7()));
+            writeStatisticRow(writer, "candidates", candidatesStatistic);
+
+            writeStatisticRow(writer, "finalSize", sizeStatistic);
+
+            writeStatisticRow(writer, "vc", vcStatistic);
+
+            writeStatisticRow(writer, "redisAccessCount", redisAccessCountStatistic);
+
+            writeStatisticRow(writer, "redisShapeFilterRateScaled", redisShapeFilterRateScaledStatistic);
         }
+    }
+
+    private static void writeStatisticRow(BufferedWriter writer, String type, SortedList<Long> values) throws IOException {
+        Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(values);
+        writer.write(String.format(CSV_FORMAT,
+                type,
+                stats._1(),
+                stats._2(),
+                stats._3(),
+                stats._4(),
+                stats._5(),
+                stats._6(),
+                stats._7()));
     }
 
     /**
@@ -173,6 +171,9 @@ public abstract class BasicQuery {
             throw new IllegalArgumentException("Usage: <table_name> <query_conditions> <result_path>");
         }
 
+        // Fail-fast: validate protobuf-generated SpatialFilter classes before any query execution.
+        SpatialFilter.validateRuntimeDependencies();
+
         String table = args[0];
         String[] queryConditions = args[1].split(";");
         String resultPath = args[2];
@@ -191,11 +192,15 @@ public abstract class BasicQuery {
 
             // 初始化统计列表
             SortedList<Long> timeStatistic = new SortedList<>(Long::compare);
-            SortedList<Long> sizeStatistic = new SortedList<>(Long::compare);
             SortedList<Long> logicIndexRangeStatistic = new SortedList<>(Long::compare);
+            SortedList<Long> sizeStatistic = new SortedList<>(Long::compare);
+            SortedList<Long> quadCodeRangeStatistic = new SortedList<>(Long::compare);
+            SortedList<Long> qOrderRangeStatistic = new SortedList<>(Long::compare);
             SortedList<Long> rowKeyRangeStatistic = new SortedList<>(Long::compare);
             SortedList<Long> candidatesStatistic = new SortedList<>(Long::compare);
             SortedList<Long> vcStatistic = new SortedList<>(Long::compare);
+            SortedList<Long> redisAccessCountStatistic = new SortedList<>(Long::compare);
+            SortedList<Long> redisShapeFilterRateScaledStatistic = new SortedList<>(Long::compare);
 
             // 预热查询（使用第一个查询条件）
             if (queryConditions.length > 0) {
@@ -227,29 +232,35 @@ public abstract class BasicQuery {
                     Tuple2<Integer, ResultScanner> result = queryPlanner.executeByFilter(filters, tableConfig, table);
 
                     if (result != null && result._2() != null) {
+                        int logicIndexRanges = result._1();
                         // 统计最终结果数量
                         long finalSize = countResults(result._2());
                         long queryTime = (System.nanoTime() - startTimeNs) / 1_000_000L;
 
                         // 使用 countPlanner 统计候选数量
-                        Tuple2<Integer, ResultScanner> countResult = countPlanner.executeByFilter(filters, tableConfig, table);
-                        long candidates = (countResult != null && countResult._2() != null)
-                                ? countResults(countResult._2()) : 0;
+                        ResultScanner countScanner = countPlanner.executeByRowRanges(queryPlanner.getLastComputedRowRanges());
+                        long candidates = countScanner != null ? countResults(countScanner) : 0;
 
                         // 获取访问的单元格数与行键区间数
                         int visitedCells = queryPlanner.getLastVisitedCells();
+                        int quadCodeRanges = queryPlanner.getLastQuadCodeRangeCount();
+                        int qOrderRanges = queryPlanner.getLastQOrderRangeCount();
                         int rowKeyRanges = queryPlanner.getLastRowRangeCount();
 
                         // 记录统计信息
                         timeStatistic.add(queryTime);
-                        logicIndexRangeStatistic.add(Long.valueOf(result._1()));
+                        logicIndexRangeStatistic.add((long) logicIndexRanges);
+                        quadCodeRangeStatistic.add((long) quadCodeRanges);
+                        qOrderRangeStatistic.add((long) qOrderRanges);
                         rowKeyRangeStatistic.add((long) rowKeyRanges);
                         sizeStatistic.add(finalSize);
                         candidatesStatistic.add(candidates);
                         vcStatistic.add((long) visitedCells);
+                        redisAccessCountStatistic.add(queryPlanner.getLastRedisAccessCount());
+                        redisShapeFilterRateScaledStatistic.add(queryPlanner.getLastRedisShapeFilterRateScaled());
 
                         // 打印查询结果
-                        printQueryResult(queryTime, result._1(), rowKeyRanges, candidates, finalSize, visitedCells);
+                        printQueryResult(queryTime, logicIndexRanges, quadCodeRanges, qOrderRanges, rowKeyRanges, candidates, finalSize, visitedCells);
                     } else {
                         System.out.println("⚠ Query returned null result");
                     }
@@ -262,13 +273,14 @@ public abstract class BasicQuery {
 
             // 保存统计结果
             printHeader("Saving Statistics");
-            saveResult(timeStatistic, sizeStatistic, candidatesStatistic, logicIndexRangeStatistic,
-                    rowKeyRangeStatistic, vcStatistic, resultPath);
+            saveResult(timeStatistic, logicIndexRangeStatistic, sizeStatistic, candidatesStatistic,
+                    quadCodeRangeStatistic, qOrderRangeStatistic,
+                    rowKeyRangeStatistic, vcStatistic, redisAccessCountStatistic, redisShapeFilterRateScaledStatistic, resultPath);
             System.out.printf("✓ Statistics saved to: %s%n", resultPath);
             System.out.println();
 
             // 打印汇总统计信息
-            printSummaryStatistics(timeStatistic, sizeStatistic, candidatesStatistic, logicIndexRangeStatistic,
+            printSummaryStatistics(timeStatistic, logicIndexRangeStatistic, sizeStatistic, candidatesStatistic, quadCodeRangeStatistic, qOrderRangeStatistic,
                     rowKeyRangeStatistic, vcStatistic);
 
         } catch (Exception e) {
@@ -281,9 +293,11 @@ public abstract class BasicQuery {
      * 打印汇总统计信息
      */
     private void printSummaryStatistics(SortedList<Long> timeStatistic,
+                                        SortedList<Long> logicIndexRangeStatistic,
                                         SortedList<Long> sizeStatistic,
                                         SortedList<Long> candidatesStatistic,
-                                        SortedList<Long> logicIndexRangeStatistic,
+                                        SortedList<Long> quadCodeRangeStatistic,
+                                        SortedList<Long> qOrderRangeStatistic,
                                         SortedList<Long> rowKeyRangeStatistic,
                                         SortedList<Long> vcStatistic) {
         printHeader("Summary Statistics");
@@ -295,7 +309,17 @@ public abstract class BasicQuery {
 
         if (!logicIndexRangeStatistic.isEmpty()) {
             Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(logicIndexRangeStatistic);
-            printStatLine("Logic index ranges (SFC)", stats);
+            printStatLine("Logic ranges", stats);
+        }
+
+        if (!quadCodeRangeStatistic.isEmpty()) {
+            Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(quadCodeRangeStatistic);
+            printStatLine("qCode ranges", stats);
+        }
+
+        if (!qOrderRangeStatistic.isEmpty()) {
+            Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(qOrderRangeStatistic);
+            printStatLine("qOrder ranges", stats);
         }
 
         if (!rowKeyRangeStatistic.isEmpty()) {
@@ -343,10 +367,12 @@ public abstract class BasicQuery {
     /**
      * 打印查询结果
      */
-    private void printQueryResult(long queryTime, int logicIndexRanges, int rowKeyRanges, long candidates, long finalSize,
+    private void printQueryResult(long queryTime, int logicIndexRanges, int quadCodeRanges, int qOrderRanges, int rowKeyRanges, long candidates, long finalSize,
                                   int visitedCells) {
         System.out.printf("✓ Query Time      : %d ms%n", queryTime);
-        System.out.printf("  Logic ranges    : %d (SFC IndexRange)%n", logicIndexRanges);
+        System.out.printf("  Logic ranges    : %d%n", logicIndexRanges);
+        System.out.printf("  QuadCode ranges : %d%n", quadCodeRanges);
+        System.out.printf("  qOrder ranges   : %d%n", qOrderRanges);
         System.out.printf("  Row-key ranges  : %d (HBase scan)%n", rowKeyRanges);
         System.out.printf("  Candidates      : %d (before spatial filter)%n", candidates);
         System.out.printf("  Final Results   : %d (after spatial filter)%n", finalSize);

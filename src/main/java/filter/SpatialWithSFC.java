@@ -14,9 +14,7 @@ import scala.Tuple2;
 import java.util.List;
 
 public class SpatialWithSFC extends SpatialFilter {
-    private boolean foundMaxSFC = false;
-    private long maxSFC;
-    private long queryMinSFC;
+    private final long queryMinSFC;
 
     public SpatialWithSFC(String geom, String operationType, String compressType, 
                           long queryMinSFC) {
@@ -35,8 +33,8 @@ public class SpatialWithSFC extends SpatialFilter {
         String qualifier = Bytes.toString(CellUtil.cloneQualifier(c));
 
         if (!this.filterRow && qualifier.equals(Constants.MAX_SFC)) {
-            foundMaxSFC = true;
-            maxSFC = Bytes.toLong(CellUtil.cloneValue(c));
+            boolean foundMaxSFC = true;
+            long maxSFC = Bytes.toLong(CellUtil.cloneValue(c));
             if (maxSFC < queryMinSFC) {
                 this.filterRow = true;
                 return ReturnCode.NEXT_ROW;

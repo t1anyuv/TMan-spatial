@@ -1,6 +1,5 @@
 package loader;
 
-import com.esri.core.geometry.*;
 import config.TableConfig;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Put;
@@ -18,14 +17,13 @@ import java.util.List;
 import java.util.Map;
 
 import static utils.TrajPutUtil.getSpatialIndex;
-import utils.TrajPutUtilWithMaxsfc;
+import utils.TrajPutUtilWithMaxSFC;
 
 /**
  * LMSFC索引加载器
- * 
- * 使用LMSFC (Linearized Multi-Scale Space-Filling Curve) 索引策略存储轨迹数据
- * 
- * 核心特点：
+ * <p>
+ * 使用LMSFC索引策略存储轨迹数据
+ * <p>
  * 1. 使用统一的getSpatialIndex方法计算索引
  * 2. LMSFC返回的索引格式：(level, minSFC, maxSFC)
  * 3. 使用minSFC作为RowKey存储到HBase
@@ -92,19 +90,6 @@ public class LMSFCLoader extends Loader {
         }
     }*/
 
-    /**
-     * 存储主表数据（优化版本）
-     * 使用LMSFC索引策略
-     * 
-     * 优化点：
-     * 1. 增加Spark并行度配置
-     * 2. 使用mapPartitions批量处理减少函数调用开销
-     * 3. 优化Kryo序列化配置
-     * 4. 调整分区数以提高并行度
-     * 5. 移除不必要的空Map创建
-     * 
-     * @throws IOException 存储过程中的IO异常
-     */
     @Override
     void storePrimaryTable() throws IOException {
         SparkConf conf = new SparkConf()
@@ -147,10 +132,9 @@ public class LMSFCLoader extends Loader {
                             // 提取minSFC和maxSFC
                             long minSFC = (long) indexValue._2();
                             long maxSFC = (long) indexValue._3();
-                            
-                            // 使用TrajPutUtilWithMaxsfc构造Put（包含maxSFC列）
+
                             Tuple3<Put, Long, List<KeyValue>> putWithIndex = 
-                                TrajPutUtilWithMaxsfc.getPutWithIndex(rawTraj, minSFC, maxSFC, config);
+                                TrajPutUtilWithMaxSFC.getPutWithIndex(rawTraj, minSFC, maxSFC, config);
                             
                             results.add(new Tuple3<>(putWithIndex._1(), emptyMap, emptyList));
                             processedCount++;
