@@ -101,8 +101,22 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
   }
 
   def rangesThread(lng1: Double, lat1: Double, lng2: Double, lat2: Double, jedis: Jedis, indexTable: String, tspEncoding: Boolean = false): java.util.List[IndexRange] = {
+    val commonMetricsOnly = java.lang.Boolean.getBoolean("tman.benchmark.commonMetricsOnly")
+    val debug = java.lang.Boolean.getBoolean("tman.debug.tshape")
+    val debugLimit = 20
+
+    val printedIntersect = new java.util.concurrent.atomic.AtomicInteger(0)
+    val printedInCall = new java.util.concurrent.atomic.AtomicInteger(0)
+    val redisTupleTotal = new java.util.concurrent.atomic.AtomicLong(0L)
+    val redisTuplePassed = new java.util.concurrent.atomic.AtomicLong(0L)
+
+    var containedQuadCount: Long = 0L
+    var intersectQuadCount: Long = 0L
+    var redisAccessCount: Long = 0L
+
     val queryWindow = QueryWindow(lng1, lat1, lng2, lat2)
     val ranges = new java.util.ArrayList[IndexRange](100)
+    val quadCodeRanges = new java.util.ArrayList[IndexRange](256)
     val remaining = new java.util.ArrayDeque[TShapeEE](300)
     val levelStop = TShapeEE(-1, -1, -1, -1, -1, -1)
     root.split()
@@ -129,12 +143,19 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
 
     def checkValue(quad: TShapeEE, level: Short): Unit = {
       if (quad.isContained(queryWindow)) {
+        containedQuadCount += 1L
         val (min, max) = (quad.elementCode, quad.elementCode + IS(level))
+        quadCodeRanges.add(IndexRange(min, max, contained = true))
         semaphore.acquire()
         ranges.add(IndexRange(min << (alpha * beta).toLong, (max << (alpha * beta).toLong) - 1L, contained = true))
         semaphore.release()
       } else if (quad.insertion(queryWindow)) {
+        intersectQuadCount += 1L
         val key = quad.elementCode
+        quadCodeRanges.add(IndexRange(key, key, contained = false))
+        if (debug && printedIntersect.getAndIncrement() < debugLimit) {
+          println(s"[TSHAPE dbg] enqueue intersect: quadCode=$key, level=$level, tspEncoding=$tspEncoding")
+        }
         if (!tspEncoding) {
           if (null != quad.shapes) {
             if (quad.shapes.nonEmpty) {
@@ -166,6 +187,7 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
         }
         if (null == quad.shapes && null == quad.shapeMap) {
           val resultTT = pp.zrangeByScoreWithScores(indexTable, key << (alpha * beta).toLong, ((key + 1L) << (alpha * beta).toLong) - 1L)
+          redisAccessCount += 1L
           callables.add(new SignatureCall(quad, key, resultTT, tspEncoding))
         }
         //        featureList.add(executor.submit(new SignatureTask(quad.elementCode, quad.insertSignature(queryWindow), resultTT)))
@@ -187,11 +209,15 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
       override def call(): String = {
         val result = resultT.get
         //        quad.setVisited(true)
+        val tupleCount = if (result != null) result.size() else 0
+        var passedInCall = 0L
+        var computedSignature: Long = 0L
         if (null != result) {
           val shapeMap = new util.HashMap[Long, Int]()
           val indexedSet = new util.HashSet[Long]()
           if (!result.isEmpty) {
             val signature = quad.insertSignature(queryWindow)
+            computedSignature = signature
             if (tspEncoding) {
               for (elem <- result.asScala) {
                 //              val indexed = elem.getScore.toLong
@@ -209,6 +235,7 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
                   semaphore.acquire()
                   ranges.add(range)
                   semaphore.release()
+                  passedInCall += 1L
                   //flag = true
                 }
               }
@@ -224,16 +251,23 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
                   semaphore.acquire()
                   ranges.add(range)
                   semaphore.release()
+                  passedInCall += 1L
                 }
               }
             }
             quad.setShapes(indexedSet.asScala.toList)
           }
         }
+
+        redisTupleTotal.addAndGet(tupleCount.toLong)
+        redisTuplePassed.addAndGet(passedInCall)
+        if (debug && printedInCall.getAndIncrement() < debugLimit && tupleCount > 0) {
+          println(s"[TSHAPE dbg] process intersect: quadCode=$key, signature=$computedSignature, redisTupleCount=$tupleCount, matchedRanges=$passedInCall")
+        }
         key.toString
       }
     }
-    if (ranges.size() > 1) {
+    val merged = if (ranges.size() > 1) {
       //      ranges.asScala
       ranges.sort(IndexRange.IndexRangeIsOrdered)
       var current = ranges.get(0) // note: should always be at least one range
@@ -254,12 +288,68 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
     } else {
       ranges
     }
+    val mergedQuadCode = if (quadCodeRanges.size() > 1) {
+      quadCodeRanges.sort(IndexRange.IndexRangeIsOrdered)
+      var current = quadCodeRanges.get(0)
+      val result = ArrayBuffer.empty[IndexRange]
+      var i = 1
+      while (i < quadCodeRanges.size()) {
+        val range = quadCodeRanges.get(i)
+        if (range.lower <= current.upper + 1) {
+          current = IndexRange(current.lower, math.max(current.upper, range.upper), current.contained && range.contained)
+        } else {
+          result.append(current)
+          current = range
+        }
+        i += 1
+      }
+      result.append(current)
+      result.asJava
+    } else {
+      quadCodeRanges
+    }
+
+    if (debug) {
+      println(
+        s"[TSHAPE dbg] rangesBeforeMerge=${ranges.size()}, rangesAfterMerge=${merged.size()}, redisTupleTotal=${redisTupleTotal.get()}, redisTuplePassed=${redisTuplePassed.get()}"
+      )
+    }
+    val totalTuples = redisTupleTotal.get()
+    val passedTuples = redisTuplePassed.get()
+    val redisShapeFilterRateScaled =
+      if (totalTuples > 0L) (passedTuples * 100L) / totalTuples else 0L
+
+    LocSIndex.setLastRangeStats(
+      LocSIndex.RangeStats(
+        containedQuadCount,
+        intersectQuadCount,
+        redisAccessCount,
+        redisShapeFilterRateScaled
+      )
+    )
+    RangeStatsBridge.setLast(
+      RangeStatsBridge.Kind.TSHAPE,
+      containedQuadCount,
+      intersectQuadCount,
+      if (commonMetricsOnly || mergedQuadCode == null) 0L else mergedQuadCode.size().toLong,
+      0L,
+      redisAccessCount,
+      redisShapeFilterRateScaled
+    )
+    if (mergedQuadCode != null) {
+      RangeDebugBridge.setLastTShape(mergedQuadCode)
+    } else {
+      RangeDebugBridge.clearLastTShape()
+    }
+    merged
     //    ranges
   }
 
   def ranges(lng1: Double, lat1: Double, lng2: Double, lat2: Double, jedis: Jedis, indexTable: String): java.util.List[IndexRange] = {
+    val commonMetricsOnly = java.lang.Boolean.getBoolean("tman.benchmark.commonMetricsOnly")
     val queryWindow = QueryWindow(lng1, lat1, lng2, lat2)
     val ranges = new java.util.ArrayList[IndexRange](100)
+    val quadCodeRanges = if (commonMetricsOnly) null else new java.util.ArrayList[IndexRange](256)
     val checkList = new java.util.ArrayList[(TShapeEE, Short)](300)
     val remaining = new java.util.ArrayDeque[TShapeEE](200)
     val levelStop = TShapeEE(-1, -1, -1, -1, -1, -1)
@@ -270,6 +360,7 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
 
     var containedQuadCount = 0
     var intersectQuadCount = 0
+    var redisAccessCount: Long = 0L
 
     while (!remaining.isEmpty) {
       val next = remaining.poll
@@ -288,10 +379,13 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
       if (quad.isContained(queryWindow)) {
         containedQuadCount += 1
         val (min, max) = (quad.elementCode, quad.elementCode + IS(level))
+        if (quadCodeRanges != null) quadCodeRanges.add(IndexRange(min, max, contained = true))
         ranges.add(IndexRange(min << (alpha * beta).toLong, (max << (alpha * beta).toLong) - 1L, contained = true))
       } else if (quad.insertion(queryWindow)) {
         intersectQuadCount += 1
         val key = quad.elementCode
+        if (quadCodeRanges != null) quadCodeRanges.add(IndexRange(key, key, contained = false))
+        redisAccessCount += 1L
         val result = jedis.zrangeByScoreWithScores(indexTable, key << (alpha * beta).toLong, ((key + 1L) << (alpha * beta).toLong) - 1L)
         // println(s"${key << (alpha*beta).toLong}   ${((key + 1) << (alpha*beta).toLong) - 1L}")
         if (null != result) {
@@ -329,6 +423,40 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
     jedis.close()
     println(
       s"[LocSIndex.ranges] 覆盖 quad 数: $containedQuadCount, 相交 quad 数: $intersectQuadCount"
+    )
+    LocSIndex.setLastRangeStats(
+      LocSIndex.RangeStats(containedQuadCount.toLong, intersectQuadCount.toLong, redisAccessCount, 0L)
+    )
+    val mergedQuadCode = if (quadCodeRanges == null) {
+      null
+    } else if (quadCodeRanges.size() > 1) {
+      quadCodeRanges.sort(IndexRange.IndexRangeIsOrdered)
+      var current = quadCodeRanges.get(0)
+      val result = ArrayBuffer.empty[IndexRange]
+      var i = 1
+      while (i < quadCodeRanges.size()) {
+        val range = quadCodeRanges.get(i)
+        if (range.lower <= current.upper + 1) {
+          current = IndexRange(current.lower, math.max(current.upper, range.upper), current.contained && range.contained)
+        } else {
+          result.append(current)
+          current = range
+        }
+        i += 1
+      }
+      result.append(current)
+      result.asJava
+    } else {
+      quadCodeRanges
+    }
+    RangeStatsBridge.setLast(
+      RangeStatsBridge.Kind.TSHAPE,
+      containedQuadCount.toLong,
+      intersectQuadCount.toLong,
+      if (commonMetricsOnly || mergedQuadCode == null) 0L else mergedQuadCode.size().toLong,
+      0L,
+      redisAccessCount,
+      0L
     )
     ranges
   }
@@ -445,15 +573,49 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
     //    executorService.shutdown();
     //    executorService.awaitTermination(200, TimeUnit.MILLISECONDS)
 
-    println(
-      s"[LocSIndex.ranges] 覆盖 quad 数: $containedQuadCount, 相交 quad 数: $intersectQuadCount"
-    )
-    println(s"checked: $size")
+    // keep this method silent (benchmark output should be concise)
     ranges
   }
 }
 
 object LocSIndex extends Serializable {
+  /**
+    * 统计：用于 Java 侧输出的“真实代价口径”
+    * - visitedCells: containQuadCount + intersectQuadCount
+    * - redisAccessCount: zrangeByScoreWithScores 调用次数（pipeline 内每次调用计一次）
+    */
+  case class RangeStats(
+                          containedQuadCount: Long,
+                          intersectQuadCount: Long,
+                          redisAccessCount: Long,
+                          redisShapeFilterRateScaled: Long
+                        ) extends Serializable
+
+  private val lastStatsThreadLocal = new ThreadLocal[RangeStats]()
+
+  def setLastRangeStats(stats: RangeStats): Unit = {
+    lastStatsThreadLocal.set(stats)
+  }
+
+  def getLastVisitedCellsByContainIntersect: Long = {
+    val s = lastStatsThreadLocal.get()
+    if (s == null) 0L else s.containedQuadCount + s.intersectQuadCount
+  }
+
+  def getLastRedisAccessCount: Long = {
+    val s = lastStatsThreadLocal.get()
+    if (s == null) 0L else s.redisAccessCount
+  }
+
+  def getLastRedisShapeFilterRateScaled: Long = {
+    val s = lastStatsThreadLocal.get()
+    if (s == null) 0L else s.redisShapeFilterRateScaled
+  }
+
+  def clearLastRangeStats(): Unit = {
+    lastStatsThreadLocal.remove()
+  }
+
   // the initial level of quads
   private val cache = new java.util.concurrent.ConcurrentHashMap[(String, Short, Int, Int), LocSIndex]()
   private val cacheBounds = new java.util.concurrent.ConcurrentHashMap[(String, Short, Int, Int, (Double, Double), (Double, Double)), LocSIndex]()

@@ -55,8 +55,15 @@ public class CountPlanner extends QueryPlanner {
         List<MultiRowRangeFilter.RowRange> rowRanges = indexResult.rowRanges;
 
         if (rowRanges.isEmpty()) {
+            this.lastRowRangeCount = 0;
+            this.lastVisitedCells = indexResult.visitedCells;
+            this.lastRedisAccessCount = indexResult.redisAccessCount;
+            this.lastRedisShapeFilterRateScaled = indexResult.redisShapeFilterRateScaled;
+            this.lastScannerOpenNs = 0L;
             return null;
         }
+
+        this.lastRowRangeCount = rowRanges.size();
         
         List<Filter> finalFilters = new ArrayList<>();
         finalFilters.add(new MultiRowRangeFilter(rowRanges));
@@ -69,11 +76,50 @@ public class CountPlanner extends QueryPlanner {
         
         ResultScanner resultScanner = null;
         try {
+            long scannerOpenStartNs = System.nanoTime();
             resultScanner = hTable.getScanner(scan);
+            this.lastScannerOpenNs = System.nanoTime() - scannerOpenStartNs;
         } catch (IOException e) {
             System.err.println("[CountPlanner] Error executing count query: " + e.getMessage());
+            this.lastScannerOpenNs = 0L;
         }
+        this.lastVisitedCells = indexResult.visitedCells;
+        this.lastRedisAccessCount = indexResult.redisAccessCount;
+        this.lastRedisShapeFilterRateScaled = indexResult.redisShapeFilterRateScaled;
         return new Tuple2<>(indexResult.ranges.size(), resultScanner);
+    }
+
+    public ResultScanner executeByRowRanges(List<MultiRowRangeFilter.RowRange> rowRanges) {
+        this.lastIndexRangeComputeNs = 0L;
+        this.lastRowRangeBuildNs = 0L;
+
+        if (rowRanges == null || rowRanges.isEmpty()) {
+            this.lastRowRangeCount = 0;
+            this.lastScannerOpenNs = 0L;
+            return null;
+        }
+
+        this.lastRowRangeCount = rowRanges.size();
+
+        List<Filter> finalFilters = new ArrayList<>();
+        finalFilters.add(new MultiRowRangeFilter(rowRanges));
+        finalFilters.add(new FirstKeyOnlyFilter());
+
+        FilterList filterList = new FilterList(finalFilters);
+        Scan scan = new Scan();
+        scan.setCaching(1000);
+        scan.setFilter(filterList);
+
+        ResultScanner resultScanner = null;
+        try {
+            long scannerOpenStartNs = System.nanoTime();
+            resultScanner = hTable.getScanner(scan);
+            this.lastScannerOpenNs = System.nanoTime() - scannerOpenStartNs;
+        } catch (IOException e) {
+            System.err.println("[CountPlanner] Error executing reused count query: " + e.getMessage());
+            this.lastScannerOpenNs = 0L;
+        }
+        return resultScanner;
     }
 
     /**

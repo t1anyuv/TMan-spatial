@@ -40,12 +40,13 @@ public class LSFCReader {
      * <p>
      * 注意：当前版本仅支持 JSON 格式。
      *
-     * @param resourcePath classpath 资源路径（如 "RLOrder.json" 或 "/RLOrder.json"）
+     * @param resourcePath classpath 资源路径（如 "leti/tdrive/uni_order.json"）
      * @return LSFCMapper 包含排序映射、父节点映射和元数据
      * @throws IOException 文件读取异常或资源不存在
      */
     public static LSFCMapper loadFromClasspath(String resourcePath) throws IOException {
-        String normalizedPath = resourcePath.startsWith("/") ? resourcePath : "/" + resourcePath;
+        String resolvedPath = LetiOrderResolver.resolveClasspathResource(resourcePath);
+        String normalizedPath = resolvedPath.startsWith("/") ? resolvedPath : "/" + resolvedPath;
 
         LSFCMapper cached = cache.get(normalizedPath);
         if (cached != null) {
@@ -60,7 +61,7 @@ public class LSFCReader {
 
             InputStream inputStream = LSFCReader.class.getResourceAsStream(normalizedPath);
             if (inputStream == null) {
-                throw new IOException("Resource not found in classpath: " + resourcePath);
+                throw new IOException("Resource not found in classpath: " + resourcePath + " (resolved: " + resolvedPath + ")");
             }
 
             try {
@@ -153,6 +154,7 @@ public class LSFCReader {
     private static LSFCMapper parseJsonNode(JsonNode root) {
         Map<Long, Integer> quadCodeOrderMap = new HashMap<>();
         Map<Long, ParentQuad> quadCodeToParentMap = new HashMap<>();
+        Set<Long> validParentCodes = new HashSet<>();
 
         IndexMeta metadata = null;
         JsonNode metaNode = root.get("metadata");
@@ -162,7 +164,11 @@ public class LSFCReader {
             metadata.global_beta = metaNode.path("global_beta").asInt(2);
             metadata.max_level = metaNode.path("quadtree_max_level").asInt();
             metadata.active_cells = metaNode.path("active_cells").asLong();
+            metadata.total_cells = metaNode.path("total_cells").asLong();
             metadata.max_shapes = metaNode.path("max_shapes").asInt();
+            metadata.version = metaNode.path("version").asText("");
+            metadata.encoding_method = metaNode.path("encoding_method").asText("");
+            metadata.generation_timestamp = metaNode.path("generation_timestamp").asText("");
             JsonNode boundaryNode = metaNode.get("spatial_boundary");
             if (boundaryNode != null && !boundaryNode.isMissingNode()) {
                 metadata.boundary = new Envelope(
@@ -174,13 +180,16 @@ public class LSFCReader {
         }
 
         int maxShapeBits = 0;
+        Set<Integer> distinctOrders = new HashSet<>();
         JsonNode orderingNode = root.get("ordering");
         if (orderingNode != null && orderingNode.isArray()) {
             for (JsonNode item : orderingNode) {
                 int order = item.get("order").asInt();
+                distinctOrders.add(order);
                 JsonNode quadCodes = item.get("quad_code");
 
                 long parentCode = quadCodes.get(0).asLong();
+                validParentCodes.add(parentCode);
 
                 ParentQuad pq = null;
                 JsonNode p = item.get("parent");
@@ -213,9 +222,10 @@ public class LSFCReader {
 
         if (metadata != null) {
             metadata.maxShapeBits = maxShapeBits;
+            metadata.orderCount = distinctOrders.size();
         }
 
-        return new LSFCMapper(quadCodeOrderMap, quadCodeToParentMap, metadata);
+        return new LSFCMapper(quadCodeOrderMap, quadCodeToParentMap, validParentCodes, metadata);
     }
 
     /**
@@ -299,6 +309,9 @@ public class LSFCReader {
         /** 有效节点集合（父节点集合），不可修改 */
         public final Set<Long> validQuadCodes;
 
+        /** 按 quad code 排序后的有效节点集合，用于范围查询 */
+        public final NavigableSet<Long> sortedQuadCodes;
+
         /** 元数据信息 */
         public final IndexMeta metadata;
 
@@ -311,11 +324,14 @@ public class LSFCReader {
          */
         public LSFCMapper(Map<Long, Integer> quadCodeOrder,
                           Map<Long, ParentQuad> quadCodeParentQuad,
+                          Set<Long> validQuadCodes,
                           IndexMeta metadata) {
             this.quadCodeOrder = quadCodeOrder != null ? quadCodeOrder : Collections.emptyMap();
             this.quadCodeParentQuad = quadCodeParentQuad != null ? quadCodeParentQuad : Collections.emptyMap();
             this.metadata = metadata;
-            this.validQuadCodes = Collections.unmodifiableSet(new TreeSet<>(this.quadCodeParentQuad.keySet()));
+            TreeSet<Long> sortedCodes = new TreeSet<>(validQuadCodes != null ? validQuadCodes : Collections.emptySet());
+            this.validQuadCodes = Collections.unmodifiableSet(sortedCodes);
+            this.sortedQuadCodes = Collections.unmodifiableNavigableSet(sortedCodes);
         }
     }
 
@@ -351,6 +367,14 @@ public class LSFCReader {
          * 用于统一编码空间，确保不同父节点的形状编码不会重叠。
          */
         public int maxShapeBits;
+        /** Order group count after deduplicating identical order ids */
+        public int orderCount;
+        /** Metadata version from order file */
+        public String version;
+        /** Optional encoding method marker */
+        public String encoding_method;
+        /** Optional generation timestamp */
+        public String generation_timestamp;
     }
 }
 

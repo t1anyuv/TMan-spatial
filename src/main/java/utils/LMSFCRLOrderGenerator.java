@@ -19,15 +19,15 @@ import java.util.*;
 /**
  * LMSFC RLOrder生成器
  * 
- * 将LMSFC的编码方式应用到LETI的层级结构上，通过重新生成RLOrder.json配置文件，
+ * 将LMSFC的编码方式应用到LETI的层级结构上，通过重新生成标准 order 配置文件，
  * 在保持LETI框架不变的情况下，引入LMSFC的空间填充曲线优势。
  * 
  * 核心流程：
- * 1. 提取quad信息 - 从现有的RLOrder.json中读取1690个quad的elementCode和空间边界信息
+ * 1. 提取quad信息 - 从现有的标准 order 文件中读取1690个quad的elementCode和空间边界信息
  * 2. 计算LMSFC SFC值 - 使用LMSFC的theta配置为每个quad计算空间填充曲线值
  * 3. 按SFC值排序 - 根据计算出的SFC值对所有quad重新排序
  * 4. 分配新的order值 - 为排序后的quad分配新的连续order编号（0-1689）
- * 5. 生成新配置文件 - 输出RLOrder_LMSFC.json，保持elementCode不变，只修改order值
+ * 5. 生成新配置文件 - 输出lmsfc/tdrive/uni_order.json，保持elementCode不变，只修改order值
  * 
  * @author hty
  */
@@ -39,8 +39,8 @@ public class LMSFCRLOrderGenerator {
     public static void main(String[] args) {
         try {
             // 配置参数
-            String originalRLOrderPath = "RLOrder.json";
-            String outputPath = "src/main/resources/RLOrder_LMSFC.json";
+            String originalRLOrderPath = "leti/tdrive/uni_order.json";
+            String outputPath = "src/main/resources/lmsfc/tdrive/uni_order.json";
             String thetaConfig = "0, 1, 2, 3, 5, 7, 8, 9, 10, 11, 18, 19, 21, 24, 25, 26, 28, 29, 31, 36, 4, 6, 12, 13, 14, 15, 16, 17, 20, 22, 23, 27, 30, 32, 33, 34, 35, 37, 38, 39";
             int resolution = 20; 
             
@@ -74,7 +74,7 @@ public class LMSFCRLOrderGenerator {
             System.out.println("分配完成，共 " + newOrders.size() + " 个映射\n");
             
             // 步骤5：生成JSON
-            System.out.println("[步骤5] 生成RLOrder_LMSFC.json...");
+            System.out.println("[步骤5] 生成 lmsfc/tdrive/uni_order.json ...");
             generateRLOrderLMSFC(quads, outputPath, thetaConfig);
             System.out.println("生成完成\n");
             
@@ -98,7 +98,7 @@ public class LMSFCRLOrderGenerator {
     }
     
     /**
-     * 步骤1：从原始RLOrder.json中提取quad信息
+     * 步骤1：从原始 LETI order 文件中提取 quad 信息
      * 提取父节点及其对应的所有子节点
      */
     public static List<QuadInfo> extractQuadInfo(String rlOrderPath) throws IOException {
@@ -253,7 +253,7 @@ public class LMSFCRLOrderGenerator {
     }
     
     /**
-     * 步骤5：生成RLOrder_LMSFC.json文件
+     * 步骤5：生成 lmsfc/tdrive/uni_order.json 文件
      */
     public static void generateRLOrderLMSFC(
         List<QuadInfo> quads,
@@ -261,7 +261,7 @@ public class LMSFCRLOrderGenerator {
         String thetaConfig
     ) throws IOException {
         // 加载原始配置以获取metadata信息
-        LSFCReader.LSFCMapper originalMapper = LSFCReader.loadFromClasspath("RLOrder.json");
+        LSFCReader.LSFCMapper originalMapper = LSFCReader.loadFromClasspath("leti/tdrive/uni_order.json");
         LSFCReader.IndexMeta originalMeta = originalMapper.getMetadata();
         
         ObjectMapper mapper = new ObjectMapper();

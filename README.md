@@ -82,13 +82,13 @@ java -cp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar \
 ```bash
 java -cp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar \
   experiments.tman.LetiStoring \
-  <数据源路径> <表名> <结果路径>
+  <sourcePath> <resolution> <alpha> <beta> <timeBin> <timeBinNums> \
+  <compressType> <xmin> <ymin> <xmax> <ymax> <shards> <pIndex> \
+  <tableName> <redisHost> <adaptivePartition:0|1> <resultPath>
 ```
 
 **参数说明：**
-- `数据源路径`：轨迹数据文件路径，格式为 `oid-time-wkt`
-- `表名`：HBase 表名
-- `结果路径`：索引时间等统计信息的输出路径
+- `adaptivePartition`：是否开启自适应划分（`0` 关闭，`1` 开启）
 
 ### 4. 空间范围查询
 

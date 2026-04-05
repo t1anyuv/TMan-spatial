@@ -134,6 +134,10 @@ public class SpatialQueryValidate {
      * @return 查询结果信息（轨迹集合 + 统计信息）
      */
     public static QueryResult getQueryResults(String tableName, String queryCondition) throws IOException {
+        return new SpatialQueryValidate().getQueryResultsInternal(tableName, queryCondition);
+    }
+
+    public QueryResult getQueryResultsInternal(String tableName, String queryCondition) throws IOException {
         Set<TrajectoryInfo> results = new HashSet<>();
         long totalRows = 0;
         long missingIdRows = 0;
@@ -151,9 +155,7 @@ public class SpatialQueryValidate {
                     Double.parseDouble(xy[2].trim()),
                     Double.parseDouble(xy[3].trim()));
 
-            SpatialFilter spatialFilter = new SpatialFilter(
-                    GeometryEngine.geometryToWkt(env, 0),
-                    tableConfig.getCompressType().toString());
+            SpatialFilter spatialFilter = createSpatialFilter(env, tableConfig);
 
             List<FilterBase> filters = new ArrayList<>();
             filters.add(spatialFilter);
@@ -207,6 +209,12 @@ public class SpatialQueryValidate {
                 totalRows, missingIdRows, duplicateRows);
 
         return new QueryResult(results, totalRows, missingIdRows, duplicateRows);
+    }
+
+    protected SpatialFilter createSpatialFilter(Envelope env, TableConfig tableConfig) {
+        return new SpatialFilter(
+                GeometryEngine.geometryToWkt(env, 0),
+                tableConfig.getCompressType().toString());
     }
 
     /**
@@ -316,6 +324,10 @@ public class SpatialQueryValidate {
      * args[2] - 查询条件（格式: "xmin, ymin, xmax, ymax"）
      */
     public static void main(String[] args) throws IOException {
+        runValidate(args, new SpatialQueryValidate());
+    }
+
+    protected static void runValidate(String[] args, SpatialQueryValidate validator) throws IOException {
         if (args.length < 3) {
             System.out.println("用法: java SpatialQueryValidator <轨迹目录> <表名> <查询条件>");
             System.out.println("  轨迹目录: 包含 part-***** 格式轨迹文件的目录路径");
@@ -369,7 +381,7 @@ public class SpatialQueryValidate {
             // 步骤2: SpatialQuery 查询
             System.out.println("\n步骤2: SpatialQuery 查询...");
             startTime = System.currentTimeMillis();
-            QueryResult queryResults = getQueryResults(tableName, queryCondition);
+            QueryResult queryResults = validator.getQueryResultsInternal(tableName, queryCondition);
             long queryTime = System.currentTimeMillis() - startTime;
             System.out.printf("查询耗时: %d ms%n", queryTime);
 

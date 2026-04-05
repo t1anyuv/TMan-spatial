@@ -2,6 +2,8 @@ package index
 
 import com.esri.core.geometry._
 import org.locationtech.sfcurve.IndexRange
+
+import scala.annotation.tailrec
 import scala.io.Source
 
 /**
@@ -87,7 +89,7 @@ class BMTreeIndex(
       }
 
       // 解析第1行：维度数和bit长度
-      val header = lines(0).trim.split("\\s+").map(_.toInt)
+      val header = lines.head.trim.split("\\s+").map(_.toInt)
       val dim = header(0)
       val fileBitLength = header.slice(1, dim + 1)
 
@@ -217,6 +219,7 @@ class BMTreeIndex(
    * @param parentValue 父节点累积的SFC值
    * @return 最终的SFC值
    */
+  @tailrec
   private def computeSFC(
     xBits: Array[Int],
     yBits: Array[Int],
@@ -320,8 +323,6 @@ class BMTreeIndex(
     val maxSFC = math.max(math.max(sfc_LL, sfc_LR), math.max(sfc_UL, sfc_UR))
 
     val ranges = new java.util.ArrayList[IndexRange]()
-    // 从0开始，保证不漏检
-    //maxSFC可能漏检？
     ranges.add(IndexRange(0, maxSFC, contained = false))
     ranges
   }

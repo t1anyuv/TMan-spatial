@@ -21,6 +21,7 @@ import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Response;
 import redis.clients.jedis.resps.Tuple;
 import scala.Tuple2;
+import utils.RedisPoolManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,6 +66,26 @@ public class SpatialFilter extends FilterBase {
             throw new RuntimeException(e);
         }
         return new SpatialFilter(mesg.getGeomWKT(), mesg.getType(), mesg.getCompressType());
+    }
+
+    /**
+     * 运行时依赖自检（fail-fast）：
+     * 提前验证 protobuf 生成类是否可用，避免在 RegionServer 查询阶段才出现
+     * "Unresolved compilation problems / tman cannot be resolved" 这类延迟报错。
+     */
+    public static void validateRuntimeDependencies() {
+        try {
+            Class<?> mesgClass = Class.forName("tman.filters.generated.SpatialFilter$SpatialFilterMesg");
+            mesgClass.getMethod("parseFrom", byte[].class);
+            mesgClass.getMethod("newBuilder");
+        } catch (Throwable t) {
+            String message =
+                    "SpatialFilter protobuf runtime check failed: missing or broken generated class "
+                            + "'tman.filters.generated.SpatialFilter$SpatialFilterMesg'. "
+                            + "Please rebuild generated sources and runtime classes (e.g. run 'mvn -DskipTests compile') "
+                            + "and ensure runtime classpath points to the latest target/classes.";
+            throw new IllegalStateException(message, t);
+        }
     }
 
     /**
@@ -128,7 +149,7 @@ public class SpatialFilter extends FilterBase {
         Envelope2D envelope = new Envelope2D();
         this.geometry.queryEnvelope2D(envelope);
 
-        if (config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI_LOC_S
+        if (config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI
                 && config.getPrimary().equals(IndexEnum.INDEX_TYPE.SPATIAL)) {
             return getRangesWithLETI(tableName, config, envelope);
         }
@@ -140,27 +161,62 @@ public class SpatialFilter extends FilterBase {
      * 使用 LETI 索引获取范围
      */
     private List<IndexRange> getRangesWithLETI(String tableName, TableConfig config, Envelope2D envelope) {
+        Envelope letiBoundary = config.getLetiOrderBoundary();
+        if (letiBoundary != null && !intersects(envelope, letiBoundary)) {
+            return new ArrayList<>();
+        }
         LETILocSIndex letiLocSIndex;
+        String orderingPath = config.getOrderDefinitionPath();
         if (null != config.getEnvelope()) {
             letiLocSIndex = LETILocSIndex.apply(
+                    tableName,
                     (short) config.getResolution(),
                     new Tuple2<>(config.getEnvelope().getXMin(), config.getEnvelope().getXMax()),
                     new Tuple2<>(config.getEnvelope().getYMin(), config.getEnvelope().getYMax()),
                     config.getAlpha(),
                     config.getBeta(),
-                    config.isAdaptivePartition()
+                    config.isAdaptivePartition(),
+                    orderingPath
             );
         } else {
             letiLocSIndex = LETILocSIndex.apply(
+                    tableName,
                     (short) config.getResolution(),
                     config.getAlpha(),
                     config.getBeta(),
-                    config.isAdaptivePartition()
+                    config.isAdaptivePartition(),
+                    orderingPath
             );
         }
-        try (Jedis jedis = new Jedis(config.getRedisHost(), 6379)) {
+        try (Jedis jedis = RedisPoolManager.getResource(config.getRedisHost())) {
+            boolean useNativeQOrderTreeRanges = true;
+            String nativeQOrderTreeFlag = System.getProperty("tman.leti.useNativeQOrderTreeRanges");
+            if (nativeQOrderTreeFlag != null) {
+                useNativeQOrderTreeRanges = Boolean.parseBoolean(nativeQOrderTreeFlag);
+            }
+            if (Boolean.getBoolean("tman.leti.disableNativeQOrderTreeRanges")) {
+                useNativeQOrderTreeRanges = false;
+            }
+
+            if (useNativeQOrderTreeRanges) {
+                return letiLocSIndex.rangesWithNativeQOrderTree(
+                        envelope.xmin,
+                        envelope.ymin,
+                        envelope.xmax,
+                        envelope.ymax,
+                        jedis,
+                        tableName
+                );
+            }
             return letiLocSIndex.ranges(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax, jedis, tableName);
         }
+    }
+
+    private boolean intersects(Envelope2D query, Envelope boundary) {
+        return !(query.xmax < boundary.getXMin()
+                || query.xmin > boundary.getXMax()
+                || query.ymax < boundary.getYMin()
+                || query.ymin > boundary.getYMax());
     }
 
     /**
@@ -173,11 +229,19 @@ public class SpatialFilter extends FilterBase {
         } else {
             locSIndex = LocSIndex.apply((short) config.getResolution(), config.getAlpha(), config.getBeta());
         }
+        // 不使用 redis
         try (Jedis jedis = new Jedis(config.getRedisHost(), 6379)) {
-            if (config.getTspEncoding() == 3) {
-                return locSIndex.ranges(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax, null, tableName);
+            if (config.isTspEncoding()) {
+                return locSIndex.rangesThread(
+                        envelope.xmin,
+                        envelope.ymin,
+                        envelope.xmax,
+                        envelope.ymax,
+                        jedis,
+                        tableName,
+                        true);
             }
-            return locSIndex.rangesThread(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax, jedis, tableName, config.isTspEncoding());
+            return locSIndex.ranges(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax, jedis, tableName);
         }
     }
 
@@ -192,7 +256,7 @@ public class SpatialFilter extends FilterBase {
         Envelope2D envelope = new Envelope2D();
         this.geometry.queryEnvelope2D(envelope);
 
-        if (config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI_LOC_S
+        if (config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI
                 && config.getPrimary().equals(IndexEnum.INDEX_TYPE.SPATIAL)) {
             return getRangesWithLETI(tableName, config, envelope);
         }
@@ -215,10 +279,10 @@ public class SpatialFilter extends FilterBase {
             xzLocSIndex = XZLocSIndex.apply((short) config.getResolution(), config.getAlpha(), config.getBeta());
         }
         try (Jedis jedis = new Jedis(config.getRedisHost(), 6379)) {
-            if (config.getTspEncoding() == 3) {
-                return xzLocSIndex.ranges(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax, null, tableName);
+            if (config.isTspEncoding()) {
+                return xzLocSIndex.rangesThread(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax, jedis, tableName, true);
             }
-            return xzLocSIndex.rangesThread(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax, jedis, tableName, config.isTspEncoding());
+            return xzLocSIndex.ranges(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax, jedis, tableName);
         }
     }
 
@@ -243,19 +307,21 @@ public class SpatialFilter extends FilterBase {
     public long getCost(String tableName, TableConfig config) {
         List<IndexRange> indexRanges;
         switch (config.getSpatialIndexKind()) {
-            case XZ_LOC_S:
+            case XZPlus:
             case XZ_STAR:
                 indexRanges = getXZRanges(tableName, config);
                 break;
-            case LETI_LOC_S:
-            case LOC_S:
+            case LETI:
+            case TShape:
             default:
                 indexRanges = getRanges(tableName, config);
                 break;
         }
 
         long totalSize = 0;
-        try (Jedis jedis = new Jedis(config.getRedisHost(), 6379)) {
+        try (Jedis jedis = config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI
+                ? RedisPoolManager.getResource(config.getRedisHost())
+                : new Jedis(config.getRedisHost(), 6379)) {
             Pipeline pipelined = jedis.pipelined();
             List<Response<List<Tuple>>> responses = new ArrayList<>();
 

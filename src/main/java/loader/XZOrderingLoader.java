@@ -62,15 +62,6 @@ public class XZOrderingLoader extends Loader {
     /**
      * 获取轨迹的二级索引映射（XZ Ordering 版本）
      * <p>
-     * XZ Ordering 使用空间作为主索引，因此只生成 OID 二级索引。
-     *
-     * @param traj 轨迹字符串，格式为 "oid-tid-wkt"
-     * @param rowKey 主表的行键
-     * @return 二级索引映射
-     */
-    /**
-     * 获取轨迹的二级索引映射（XZ Ordering 版本）
-     * <p>
      * XZ Ordering 使用空间作为主索引，不需要二级索引。
      *
      * @param traj 轨迹字符串，格式为 "oid-tid-wkt"

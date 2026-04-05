@@ -1,7 +1,10 @@
 package constans;
 
 
+import lombok.Getter;
+
 public class IndexEnum {
+    @Getter
     public enum INDEX_TYPE {
         SPATIAL("spatial"),
         TEMPORAL("temporal"),
@@ -13,8 +16,5 @@ public class IndexEnum {
             this.indexName = indexName;
         }
 
-        public String getIndexName() {
-            return indexName;
-        }
     }
 }

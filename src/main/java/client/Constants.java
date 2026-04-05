@@ -39,7 +39,8 @@ public class Constants {
     public static String META_TABLE_TIME_BIN = "time_bin";
     public static String META_TABLE_IS_XZ = "is_xz";
     public static String META_TABLE_IS_TSP_ENCODING = "is_tsp_encoding";
-    public static String META_TABLE_IS_RL_ENCODING = "is_rl_encoding";
+    public static String META_TABLE_ORDER_ENCODING_TYPE = "order_encoding_type";
+    public static String META_TABLE_ORDER_DEFINITION_PATH = "order_definition_path";
     public static String META_TABLE_ADAPTIVE_PARTITION = "adaptive_partition";
     public static String META_TABLE_MAX_SHAPE_BITS = "max_shape_bits";
     public static String META_REDIS = "redis";
@@ -57,6 +58,21 @@ public class Constants {
     public static final String META_TABLE_IS_BMTREE = "isBMTree";
     public static final String META_TABLE_BMTREE_CONFIG_PATH = "bmtreeConfigPath";
     public static final String META_TABLE_BMTREE_BIT_LENGTH = "bmtreeBitLength";
+
+    public static final String META_TABLE_LETI_ORDER_NAME = "letiOrderName";
+    public static final String META_TABLE_LETI_ORDER_DATASET = "letiOrderDataset";
+    public static final String META_TABLE_LETI_ORDER_DISTRIBUTION = "letiOrderDistribution";
+    public static final String META_TABLE_LETI_ORDER_VERSION = "letiOrderVersion";
+    public static final String META_TABLE_LETI_ORDER_COUNT = "letiOrderCount";
+    public static final String META_TABLE_LETI_ACTIVE_CELLS = "letiActiveCells";
+    public static final String META_TABLE_LETI_TOTAL_CELLS = "letiTotalCells";
+    public static final String META_TABLE_LETI_MAX_LEVEL = "letiMaxLevel";
+    public static final String META_TABLE_LETI_GLOBAL_ALPHA = "letiGlobalAlpha";
+    public static final String META_TABLE_LETI_GLOBAL_BETA = "letiGlobalBeta";
+    public static final String META_TABLE_LETI_BOUNDARY_XMIN = "letiBoundaryXMin";
+    public static final String META_TABLE_LETI_BOUNDARY_XMAX = "letiBoundaryXMax";
+    public static final String META_TABLE_LETI_BOUNDARY_YMIN = "letiBoundaryYMin";
+    public static final String META_TABLE_LETI_BOUNDARY_YMAX = "letiBoundaryYMax";
 
     public static String STAT_TABLE = "_stat";
 }

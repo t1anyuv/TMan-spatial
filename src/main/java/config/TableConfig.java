@@ -13,14 +13,7 @@ import java.io.Serializable;
 @Getter
 @Setter
 public class TableConfig implements Serializable {
-    public enum SpatialIndexKind {
-        LOC_S,
-        XZ_LOC_S,
-        LETI_LOC_S,
-        XZ_STAR,
-        LMSFC,
-        BMTREE
-    }
+    private int adaptivePartition = 0;
 
     @Getter
     private IndexEnum.INDEX_TYPE primary;
@@ -42,15 +35,24 @@ public class TableConfig implements Serializable {
     private Short shards;
     private int isXZ = 0;
     private int tspEncoding = 0;
-    private int rlEncoding = 0;
-    private String rlOrderingPath;
+    private int orderEncodingType = 0;
+    private String orderDefinitionPath;
 
     /**
-     * 是否使用自适应划分：
-     * 0 - 使用全局的 alpha 和 beta（默认）
-     * 1 - 使用 ParentQuad 中的 alpha 和 beta（自适应）
+     * XZ_Plus 模式识别。
+     * <p>
+     * <p>
+     * - isXZPlus=1 的含义：
+     * 1) isXZ=1
+     * 2) alpha=beta
+     * 3) tspEncoding=0（不参与 TSP 编码）
+     * 4) 且不是 XZ_STAR（由 {@link #isXZStar()} 决定）
+     * <p>
+     * 注意：在 {@link #getSpatialIndexKind()} 中，会先判断更高优先级（BMTree/LMSFC/LETI/XZ_STAR）。
      */
-    private int adaptivePartition = 0;
+    public boolean isXZPlus() {
+        return isXZ == 1 && alpha == beta && tspEncoding == 0 && !isXZStar();
+    }
 
     /**
      * 自适应划分时的最大形状位数
@@ -64,6 +66,17 @@ public class TableConfig implements Serializable {
     private int isBMTree = 0;
     private String bmtreeConfigPath = "";
     private int[] bmtreeBitLength = new int[0];
+    private String letiOrderName = "";
+    private String letiOrderDataset = "";
+    private String letiOrderDistribution = "";
+    private String letiOrderVersion = "";
+    private long letiOrderCount = 0L;
+    private long letiActiveCells = 0L;
+    private long letiTotalCells = 0L;
+    private int letiMaxLevel = 0;
+    private int letiGlobalAlpha = 0;
+    private int letiGlobalBeta = 0;
+    private Envelope letiOrderBoundary;
 
     public TableConfig() {
     }
@@ -104,30 +117,40 @@ public class TableConfig implements Serializable {
         return redisHost;
     }
 
-    public boolean isXZ() {
-        return isXZ == 1;
-    }
-
     /**
-     * TSP 编码的两种方式：蚁群算法和遗传算法，分别对应 1 和 2
+     * TSP 编码是否启用。
+     * <p>
+     *
+     * - LETI 模式要求 tspEncoding=1/2（两种方式分别对应 1 和 2）
      *
      * @return boolean
+     *
      */
     public boolean isTspEncoding() {
         return tspEncoding == 1 || tspEncoding == 2;
     }
 
     /**
-     * LETI 索引模式
+     * LETI 模式识别。
+     * <p>
+     *
+     * - orderEncodingType=1
+     * - 且满足 isXZPlus=0
+     * - 且 tspEncoding=1/2（由 {@link #isTspEncoding()} 判断）
+     * <p>
+     * 注意：在 {@link #getSpatialIndexKind()} 中，会先判断更高优先级（BMTree/LMSFC）。
      *
      * @return boolean
      */
     public boolean isLETI() {
-        return rlEncoding == 1 && !isXZ() && isTspEncoding();
+        return orderEncodingType == 1 && !isXZPlus() && isTspEncoding();
     }
 
     /**
-     * 是否使用自适应划分
+     * 是否使用自适应划分。
+     * <p>
+     * 该开关仅在当前空间索引模式为 LETI 时生效（即 {@link #isLETI()} 为 true），并且
+     * {@code adaptivePartition=1} 才会启用。
      *
      * @return boolean
      */
@@ -136,10 +159,13 @@ public class TableConfig implements Serializable {
     }
 
     /**
-     * XZ_STAR 索引模式识别：
-     * - 固定使用 alpha=2, beta=2
-     * - 不参与 TSP 编码（tspEncoding=0）
-     * - 且使用 XZ 编码路径（isXZ=1）
+     * XZ_STAR 模式识别。
+     * <p>
+     * - isXZ=1
+     * - alpha=2, beta=2
+     * - tspEncoding=0（不参与 TSP 编码）
+     * <p>
+     * 注意：在 {@link #getSpatialIndexKind()} 中，XZ_STAR 的优先级高于 XZ_Plus。
      */
     public boolean isXZStar() {
         return isXZ == 1
@@ -149,7 +175,11 @@ public class TableConfig implements Serializable {
     }
 
     /**
-     * 是否使用 LMSFC 索引
+     * LMSFC 模式识别。
+     * <p>
+     * - isLMSFC=1
+     * <p>
+     * 注意：在 {@link #getSpatialIndexKind()} 中，BMTree 的优先级高于 LMSFC。
      *
      * @return boolean
      */
@@ -158,12 +188,46 @@ public class TableConfig implements Serializable {
     }
 
     /**
-     * 是否使用 BMTree 索引
+     * BMTree 模式识别。
+     * <p>
+     * 规则对应你给的“六种空间索引”：
+     * - isBMTree=1
+     * <p>
+     * 注意：在 {@link #getSpatialIndexKind()} 中，该模式优先级最高。
      *
      * @return boolean
      */
     public boolean isBMTree() {
         return isBMTree == 1;
+    }
+
+    /**
+     * 当前配置对应的“六种空间索引”之一。
+     * 规则（优先级从高到低）：
+     * - BMTree: isBMTree=1
+     * - LMSFC: isLMSFC=1
+     * - LETI: orderEncodingType=1, isXZPlus=0, 且 tspEncoding=1/2
+     * - XZ_STAR: isXZPlus=1, alpha=2, beta=2, tspEncoding=0
+     * - XZ_Plus: isXZPlus=1, alpha=beta, tspEncoding=0, not XZ_STAR
+     * - TShape:
+     */
+    public SpatialIndexKind getSpatialIndexKind() {
+        if (isBMTree()) {
+            return SpatialIndexKind.BMTREE;
+        }
+        if (isLMSFC()) {
+            return SpatialIndexKind.LMSFC;
+        }
+        if (isLETI()) {
+            return SpatialIndexKind.LETI;
+        }
+        if (isXZStar()) {
+            return SpatialIndexKind.XZ_STAR;
+        }
+        if (isXZPlus()) {
+            return SpatialIndexKind.XZPlus;
+        }
+        return SpatialIndexKind.TShape;
     }
 
     /**
@@ -209,30 +273,12 @@ public class TableConfig implements Serializable {
         this.bmtreeBitLength = bitLength;
     }
 
-    /**
-     * 当前配置对应的“四种空间索引”之一。
-     * 规则（优先级从高到低）：
-     * - LETI: rlEncoding=1, isXZ=0, 且 tspEncoding=1/2
-     * - XZ_STAR: isXZ=1, alpha=2, beta=2, tspEncoding=0
-     * - XZ_LOC_S: isXZ=1（且非 XZ_STAR）
-     * - LOC_S: 其余情况（isXZ=0 且非 LETI）
-     */
-    public SpatialIndexKind getSpatialIndexKind() {
-        if (isBMTree()) {
-            return SpatialIndexKind.BMTREE;
-        }
-        if (isLMSFC()) {
-            return SpatialIndexKind.LMSFC;
-        }
-        if (isLETI()) {
-            return SpatialIndexKind.LETI_LOC_S;
-        }
-        if (isXZStar()) {
-            return SpatialIndexKind.XZ_STAR;
-        }
-        if (isXZ()) {
-            return SpatialIndexKind.XZ_LOC_S;
-        }
-        return SpatialIndexKind.LOC_S;
+    public enum SpatialIndexKind {
+        TShape,
+        XZPlus,
+        LETI,
+        XZ_STAR,
+        LMSFC,
+        BMTREE
     }
 }

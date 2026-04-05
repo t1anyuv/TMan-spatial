@@ -1,6 +1,11 @@
 package experiments.benchmark;
 
 import config.TableConfig;
+import experiments.benchmark.config.DatasetConfig;
+import experiments.benchmark.config.IndexMethod;
+import experiments.benchmark.io.TableBuilder;
+import experiments.benchmark.model.ExperimentStats;
+import experiments.tman.BasicQuery;
 import lombok.Setter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -8,16 +13,14 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import utils.LetiOrderResolver;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * 对比实验框架主类
@@ -33,10 +36,6 @@ public class ComparisonExperiment {
     private final List<IndexMethod> methods;
     private final List<DatasetConfig> datasets;
     private final Set<String> createdTables;
-    /**
-     * -- SETTER --
-     *  设置数据集名称
-     */
     @Setter
     private String datasetName;
     
@@ -78,7 +77,7 @@ public class ComparisonExperiment {
      * 运行完整实验
      */
     public void runExperiment() {
-        BenchmarkRunner runner = new BenchmarkRunner(outputDir);
+        BenchmarkRunner runner = new BenchmarkRunner(outputDir, true);
         List<ExperimentStats> allStats = new ArrayList<>();
         
         System.out.println("\n" + repeatString());
@@ -87,16 +86,28 @@ public class ComparisonExperiment {
         System.out.println(repeatString());
         
         for (IndexMethod method : methods) {
-            String tableName = buildTableName(method, datasetName);
-            
-            // 每个方法只检查/创建一次表
-            DatasetConfig baseDataset = datasets.get(0);
-            ensureTableExists(method, baseDataset, tableName);
-            
-            // 该方法的所有参数实验都共享同一个表
-            for (DatasetConfig dataset : datasets) {
-                ExperimentStats stats = runner.runBenchmark(method, dataset, tableName);
-                allStats.add(stats);
+            if (method == IndexMethod.LETI) {
+                Set<String> ensuredLetiTables = new HashSet<>();
+                for (DatasetConfig dataset : datasets) {
+                    String tableName = buildLetiTableName(method, datasetName, dataset.getDistribution());
+                    if (!ensuredLetiTables.contains(tableName)) {
+                        ensureTableExists(method, dataset, tableName);
+                        ensuredLetiTables.add(tableName);
+                    }
+                    ExperimentStats stats = runner.runBenchmark(method, dataset, tableName);
+                    allStats.add(stats);
+                }
+            } else {
+                String tableName = buildTableName(method, datasetName);
+                // 每个方法只检查/创建一次表
+                DatasetConfig baseDataset = datasets.get(0);
+                ensureTableExists(method, baseDataset, tableName);
+
+                // 该方法的所有参数实验都共享同一个表
+                for (DatasetConfig dataset : datasets) {
+                    ExperimentStats stats = runner.runBenchmark(method, dataset, tableName);
+                    allStats.add(stats);
+                }
             }
         }
         
@@ -137,19 +148,8 @@ public class ComparisonExperiment {
                 // 构建表配置 - 使用 DatasetConfig 中的参数
                 TableConfig config = TableBuilder.buildConfig(dataset);
 
-                // 为 LMSFC 和 BMTREE 设置特定配置（从 DatasetConfig 传递到 TableConfig）
-                if (method == IndexMethod.LMSFC) {
-                    String thetaConfig = dataset.getThetaConfigOrDefault();
-                    config.setThetaConfig(thetaConfig);
-                    System.out.println("  Setting LMSFC thetaConfig: " + thetaConfig);
-                } else if (method == IndexMethod.BMTREE) {
-                    String bmtreeConfigPath = dataset.getBMTreeConfigPathOrDefault();
-                    String bmtreeBitLength = dataset.getBMTreeBitLengthOrDefault();
-                    config.setBMTreeConfigPath(bmtreeConfigPath);
-                    config.setBMTreeBitLength(bmtreeBitLength);
-                    System.out.println("  Setting BMTree configPath: " + bmtreeConfigPath);
-                    System.out.println("  Setting BMTree bitLength: " + bmtreeBitLength);
-                }
+                // 为特定方法设置索引参数（从 DatasetConfig 传递到 TableConfig）
+                configureIndexSpecificSettings(method, dataset, config);
 
                 // 获取数据源路径
                 String dataPath = dataset.getDataFilePath();
@@ -178,6 +178,9 @@ public class ComparisonExperiment {
      */
     private void configureIndexSpecificSettings(IndexMethod method, DatasetConfig dataset, TableConfig config) {
         switch (method) {
+            case LETI:
+                configureLETI(dataset, config);
+                break;
             case LMSFC:
                 configureLMSFC(dataset, config);
                 break;
@@ -187,6 +190,54 @@ public class ComparisonExperiment {
             default:
                 // 其他方法不需要额外配置
                 break;
+        }
+    }
+
+    /**
+     * 配置 LETI 索引参数（按数据集与分布动态选择 RL ordering 文件）。
+     */
+    private void configureLETI(DatasetConfig dataset, TableConfig config) {
+        String orderDefinitionPath = resolveLetiOrderingPath(dataset);
+        config.setAdaptivePartition(0);
+        config.setOrderDefinitionPath(orderDefinitionPath);
+        System.out.println("Configuring LETI index:");
+        System.out.println("  - adaptivePartition: 1");
+        System.out.println("  - orderDefinitionPath: " + orderDefinitionPath);
+    }
+
+    private String resolveLetiOrderingPath(DatasetConfig dataset) {
+        String datasetKey = normalizeDatasetName(dataset.getDatasetName());
+        String distKey = normalizeDistributionName(dataset.getDistribution());
+        String candidate = String.format("leti/%s/%s_order.json", datasetKey, distKey);
+        ClassLoader cl = ComparisonExperiment.class.getClassLoader();
+        if (cl.getResource(candidate) != null) {
+            return LetiOrderResolver.resolveClasspathResource(candidate);
+        }
+        return LetiOrderResolver.defaultOrderPath();
+    }
+
+    private String normalizeDatasetName(String datasetName) {
+        if (datasetName == null) {
+            return "unknown";
+        }
+        String normalized = datasetName.trim().toLowerCase(Locale.ROOT);
+        return normalized.replace('-', '_');
+    }
+
+    private String normalizeDistributionName(String distribution) {
+        if (distribution == null) {
+            return "default";
+        }
+        String dist = distribution.trim().toLowerCase(Locale.ROOT);
+        switch (dist) {
+            case "uniform":
+                return "uni";
+            case "gaussian":
+                return "gauss";
+            case "skewed":
+                return "skew";
+            default:
+                return dist;
         }
     }
 
@@ -280,34 +331,240 @@ public class ComparisonExperiment {
             method.getShortName().toLowerCase()
         );
     }
+
+    private String buildLetiTableName(IndexMethod method, String datasetName, String distribution) {
+        String dist = distribution == null ? "default" : distribution.toLowerCase(Locale.ROOT);
+        return String.format("%s_%s_%s",
+                datasetName.toLowerCase(Locale.ROOT),
+                method.getShortName().toLowerCase(Locale.ROOT),
+                dist);
+    }
     
     /**
      * 生成CSV格式的对比表格
      */
     private void generateComparisonTable(List<ExperimentStats> allStats) {
-        String csvPath = outputDir + "/comparison_results.csv";
-        
+        // Output split by method groups; each file contains only the required metrics (avg only).
+        String commonPath = outputDir + "/comparison_common_all_methods.csv";
+        String locsPath = outputDir + "/comparison_locsindex_only.csv";
+        String tspPath = outputDir + "/comparison_tspencoding_only.csv";
+
         try {
             Files.createDirectories(Paths.get(outputDir));
-            BufferedWriter writer = new BufferedWriter(new FileWriter(csvPath));
-            
-            // 写入CSV头
-            writer.write(ExperimentStats.getCsvHeader());
-            writer.newLine();
-            
-            // 写入每行统计
-            for (ExperimentStats stats : allStats) {
-                writer.write(stats.toCsvRow());
-                writer.newLine();
+
+            try (BufferedWriter commonWriter = new BufferedWriter(new FileWriter(commonPath));
+                 BufferedWriter locsWriter = new BufferedWriter(new FileWriter(locsPath));
+                 BufferedWriter tspWriter = new BufferedWriter(new FileWriter(tspPath))) {
+
+                commonWriter.write(getCommonHeaderAvgOnly());
+                commonWriter.newLine();
+
+                locsWriter.write(getLocSIndexHeaderAvgOnly());
+                locsWriter.newLine();
+
+                tspWriter.write(getTspHeaderAvgOnly());
+                tspWriter.newLine();
+
+                for (ExperimentStats stats : allStats) {
+                    IndexMethod method = stats.getMethod();
+
+                    // All methods
+                    commonWriter.write(toCommonCsvRowAvgOnly(stats));
+                    commonWriter.newLine();
+
+                    // LocSIndex subset
+                    if (isLocSIndexMethod(method)) {
+                        locsWriter.write(toLocSIndexCsvRowAvgOnly(stats));
+                        locsWriter.newLine();
+                    }
+
+                    if (isTspEncodingMethod(method)) {
+                        tspWriter.write(toTspCsvRowAvgOnly(stats));
+                        tspWriter.newLine();
+                    }
+
+                }
             }
-            
-            writer.close();
-            System.out.println("\nComparison table saved to: " + csvPath);
+
+            generatePerMethodDistributionFiles(allStats);
+
+            System.out.println("\nComparison outputs saved to: " + outputDir);
+            System.out.println("  - " + commonPath);
+            System.out.println("  - " + locsPath);
+            System.out.println("  - " + tspPath);
         } catch (IOException e) {
-            System.err.println("Error writing comparison table: " + e.getMessage());
+            System.err.println("Error writing comparison outputs: " + e.getMessage());
         }
     }
-    
+
+    private void generatePerMethodDistributionFiles(List<ExperimentStats> allStats) throws IOException {
+        Map<String, List<ExperimentStats>> grouped = new HashMap<>();
+        for (ExperimentStats stats : allStats) {
+            String key = buildMethodDistributionKey(stats);
+            grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(stats);
+        }
+
+        for (Map.Entry<String, List<ExperimentStats>> entry : grouped.entrySet()) {
+            String filePath = outputDir + "/" + entry.getKey() + ".csv";
+            List<ExperimentStats> groupStats = entry.getValue();
+            groupStats.sort(Comparator.comparingInt(a -> a.getDataset().getQueryRange()));
+
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+                writer.write(getMethodDistributionHeader());
+                writer.newLine();
+                for (ExperimentStats stats : groupStats) {
+                    writer.write(toMethodDistributionCsvRow(stats));
+                    writer.newLine();
+                }
+            }
+        }
+    }
+
+    private String buildMethodDistributionKey(ExperimentStats stats) {
+        return String.format("%s_%s-%s",
+                stats.getMethod().getShortName(),
+                stats.getDataset().getDatasetName(),
+                stats.getDataset().getDistribution());
+    }
+
+    private String getMethodDistributionHeader() {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return "Method,Dataset,Distribution,QueryRange_Meters,"
+                    + "Latency_Avg,LogicalIndexRanges_Avg,Candidates_Avg,FinalResultCount_Avg,"
+                    + "RowKeyRanges_Avg,VisitedCells_Avg,IndexSize_KB";
+        }
+        return "Method,Dataset,Distribution,QueryRange_Meters,"
+                + "Latency_Avg,LogicalIndexRanges_Avg,Candidates_Avg,FinalResultCount_Avg,"
+                + "QuadCodeRanges_Avg,QOrderRanges_Avg,RowKeyRanges_Avg,VisitedCells_Avg,"
+                + "RedisAccessCount_Avg,RedisShapeFilterRate_Avg,IndexSize_KB";
+    }
+
+    private String toMethodDistributionCsvRow(ExperimentStats stats) {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return String.format(Locale.US,
+                    "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d",
+                    stats.getMethod().getShortName(),
+                    stats.getDataset().getDatasetName(),
+                    stats.getDataset().getDistribution(),
+                    stats.getDataset().getQueryRange(),
+                    stats.getLatencyStats().getAvg(),
+                    stats.getLogicIndexRangeStats().getAvg(),
+                    stats.getCandidatesStats().getAvg(),
+                    stats.getFinalResultStats().getAvg(),
+                    stats.getRowKeyRangeStats().getAvg(),
+                    stats.getVisitedCellsStats().getAvg(),
+                    stats.getIndexSizeKb());
+        }
+        return String.format(Locale.US,
+                "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+                stats.getMethod().getShortName(),
+                stats.getDataset().getDatasetName(),
+                stats.getDataset().getDistribution(),
+                stats.getDataset().getQueryRange(),
+                stats.getLatencyStats().getAvg(),
+                stats.getLogicIndexRangeStats().getAvg(),
+                stats.getCandidatesStats().getAvg(),
+                stats.getFinalResultStats().getAvg(),
+                stats.getQuadCodeRangeStats().getAvg(),
+                stats.getQOrderRangeStats().getAvg(),
+                stats.getRowKeyRangeStats().getAvg(),
+                stats.getVisitedCellsStats().getAvg(),
+                stats.getRedisAccessCountStats().getAvg(),
+                stats.getRedisShapeFilterRateScaledStats().getAvg(),
+                stats.getIndexSizeKb());
+    }
+
+    private boolean isLocSIndexMethod(IndexMethod method) {
+        return method == IndexMethod.LETI || method == IndexMethod.TSHAPE || method == IndexMethod.XZ_STAR;
+    }
+
+    private boolean isTspEncodingMethod(IndexMethod method) {
+        return method == IndexMethod.LETI || method == IndexMethod.TSHAPE;
+    }
+
+    private String getCommonHeaderAvgOnly() {
+        return "Method,Dataset,Distribution,QueryRange_Meters,"
+                + "Latency_Avg,LogicalIndexRanges_Avg,VisitedCells_Avg,RowKeyRanges_Avg,"
+                + "Candidates_Avg,FinalResultCount_Avg,IndexSize_KB";
+    }
+
+    private String getLocSIndexHeaderAvgOnly() {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return "Method,Dataset,Distribution,QueryRange_Meters,"
+                    + "LogicalIndexRanges_Avg,RowKeyRanges_Avg,VisitedCells_Avg";
+        }
+        return "Method,Dataset,Distribution,QueryRange_Meters,"
+                + "LogicalIndexRanges_Avg,QuadCodeRanges_Avg,QOrderRanges_Avg,RowKeyRanges_Avg,VisitedCells_Avg";
+    }
+
+    private String getTspHeaderAvgOnly() {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return "Method,Dataset,Distribution,QueryRange_Meters";
+        }
+        return "Method,Dataset,Distribution,QueryRange_Meters,"
+                + "RedisAccessCount_Avg,RedisShapeFilterRate_Avg";
+    }
+
+    private String toCommonCsvRowAvgOnly(ExperimentStats stats) {
+        return String.format(Locale.US,
+                "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d",
+                stats.getMethod().getShortName(),
+                stats.getDataset().getDatasetName(),
+                stats.getDataset().getDistribution(),
+                stats.getDataset().getQueryRange(),
+                stats.getLatencyStats().getAvg(),
+                stats.getLogicIndexRangeStats().getAvg(),
+                stats.getVisitedCellsStats().getAvg(),
+                stats.getRowKeyRangeStats().getAvg(),
+                stats.getCandidatesStats().getAvg(),
+                stats.getFinalResultStats().getAvg(),
+                stats.getIndexSizeKb());
+    }
+
+    private String toLocSIndexCsvRowAvgOnly(ExperimentStats stats) {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return String.format(Locale.US,
+                    "%s,%s,%s,%d,%d,%d,%d",
+                    stats.getMethod().getShortName(),
+                    stats.getDataset().getDatasetName(),
+                    stats.getDataset().getDistribution(),
+                    stats.getDataset().getQueryRange(),
+                    stats.getLogicIndexRangeStats().getAvg(),
+                    stats.getRowKeyRangeStats().getAvg(),
+                    stats.getVisitedCellsStats().getAvg());
+        }
+        return String.format(Locale.US,
+                "%s,%s,%s,%d,%d,%d,%d,%d,%d",
+                stats.getMethod().getShortName(),
+                stats.getDataset().getDatasetName(),
+                stats.getDataset().getDistribution(),
+                stats.getDataset().getQueryRange(),
+                stats.getLogicIndexRangeStats().getAvg(),
+                stats.getQuadCodeRangeStats().getAvg(),
+                stats.getQOrderRangeStats().getAvg(),
+                stats.getRowKeyRangeStats().getAvg(),
+                stats.getVisitedCellsStats().getAvg());
+    }
+
+    private String toTspCsvRowAvgOnly(ExperimentStats stats) {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return String.format(Locale.US,
+                    "%s,%s,%s,%d",
+                    stats.getMethod().getShortName(),
+                    stats.getDataset().getDatasetName(),
+                    stats.getDataset().getDistribution(),
+                    stats.getDataset().getQueryRange());
+        }
+        return String.format(Locale.US,
+                "%s,%s,%s,%d,%d,%d",
+                stats.getMethod().getShortName(),
+                stats.getDataset().getDatasetName(),
+                stats.getDataset().getDistribution(),
+                stats.getDataset().getQueryRange(),
+                stats.getRedisAccessCountStats().getAvg(),
+                stats.getRedisShapeFilterRateScaledStats().getAvg());
+    }
+
     /**
      * 主入口
      * 参数: <query_base_dir> <data_base_dir> <output_dir> <dataset_name>
@@ -331,8 +588,8 @@ public class ComparisonExperiment {
         exp.addMethod(IndexMethod.LETI);
         exp.addMethod(IndexMethod.TSHAPE);
         exp.addMethod(IndexMethod.XZ_STAR);
-        exp.addMethod(IndexMethod.LMSFC);  
-        exp.addMethod(IndexMethod.BMTREE); 
+//        exp.addMethod(IndexMethod.LMSFC);
+//        exp.addMethod(IndexMethod.BMTREE);
         
         // 设置标准实验配置
         exp.setDatasetName(datasetName);

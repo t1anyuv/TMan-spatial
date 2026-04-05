@@ -15,7 +15,7 @@ public class TSPGreedy {
      * 对形状列表进行编码排序
      * 
      * @param shapes 形状编码列表
-     * @param tspEncoding TSP 编码类型：0=不编码，1=贪心算法，2=遗传算法，3=不编码
+     * @param tspEncoding TSP 编码类型：0=不编码，1=贪心算法，2=遗传算法
      * @return 排序后的索引列表
      */
     public static List<Integer> encodeShapes(List<Long> shapes, int tspEncoding) {
@@ -24,7 +24,7 @@ public class TSPGreedy {
         }
         
         // 如果不使用 TSP 编码，直接返回原始顺序
-        if (tspEncoding == 0 || tspEncoding == 3) {
+        if (tspEncoding == 0) {
             List<Integer> orders = new ArrayList<>(shapes.size());
             for (int i = 0; i < shapes.size(); i++) {
                 orders.add(i);

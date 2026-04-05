@@ -1,4 +1,4 @@
-package experiments.benchmark;
+package experiments.benchmark.config;
 
 import lombok.Getter;
 
@@ -20,5 +20,4 @@ public enum IndexMethod {
         this.shortName = shortName;
         this.indexClassName = indexClassName;
     }
-
 }

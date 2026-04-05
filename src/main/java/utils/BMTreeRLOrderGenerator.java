@@ -18,16 +18,16 @@ import java.util.*;
 
 /**
  * BMTree RLOrder生成器
- * 
- * 将BMTree的编码方式应用到LETI的层级结构上，通过重新生成RLOrder.json配置文件，
+ * <p>
+ * 将BMTree的编码方式应用到LETI的层级结构上，通过重新生成标准 order 配置文件，
  * 在保持LETI框架不变的情况下，引入BMTree的自适应空间填充曲线优势。
- * 
+ * <p>
  * 核心流程：
- * 1. 提取quad信息 - 从现有的RLOrder.json中读取1690个quad的elementCode和空间边界信息
+ * 1. 提取quad信息 - 从现有的 LETI order 文件中读取1690个quad的elementCode和空间边界信息
  * 2. 计算BMTree SFC值 - 使用BMTree的树结构配置为每个quad计算空间填充曲线值
  * 3. 按SFC值排序 - 根据计算出的SFC值对所有quad重新排序
  * 4. 分配新的order值 - 为排序后的quad分配新的连续order编号（0-1689）
- * 5. 生成新配置文件 - 输出RLOrder_BMTree.json，保持elementCode不变，只修改order值
+ * 5. 生成新配置文件 - 输出bmtree/tdrive/uni_order.json，保持elementCode不变，只修改order值
  * 
  * @author hty
  */
@@ -39,9 +39,9 @@ public class BMTreeRLOrderGenerator {
     public static void main(String[] args) {
         try {
             // 配置参数
-            String originalRLOrderPath = "RLOrder.json";
-            String outputPath = "src/main/resources/RLOrder_BMTree.json";
-            String bmtreeConfigPath = "bmtree/tdrive_bmtree.txt";
+            String originalRLOrderPath = "leti/tdrive/uni_order.json";
+            String outputPath = "src/main/resources/bmtree/tdrive/uni_order.json";
+            String bmtreeConfigPath = "bmtree/tdrive/tdrive_bmtree.txt";
             String bmtreeBitLength = "20,20";
             int resolution = 12;  // LETI的四叉树最大层级
             
@@ -81,7 +81,7 @@ public class BMTreeRLOrderGenerator {
             System.out.println("分配完成，共 " + newOrders.size() + " 个映射\n");
             
             // 步骤5：生成JSON
-            System.out.println("[步骤5] 生成RLOrder_BMTree.json...");
+            System.out.println("[步骤5] 生成 bmtree/tdrive/uni_order.json ...");
             generateRLOrderBMTree(quads, outputPath, bmtreeConfigPath, bmtreeBitLength);
             System.out.println("生成完成\n");
             
@@ -117,7 +117,7 @@ public class BMTreeRLOrderGenerator {
     }
     
     /**
-     * 步骤1：从原始RLOrder.json中提取quad信息
+     * 步骤1：从原始 LETI order 文件中提取 quad 信息
      * 提取父节点及其对应的所有子节点
      */
     public static List<QuadInfo> extractQuadInfo(String rlOrderPath) throws IOException {
@@ -188,8 +188,8 @@ public class BMTreeRLOrderGenerator {
         int[] bitLength,
         int resolution
     ) throws IOException {
-        // 从原始RLOrder.json的metadata中获取全局边界
-        LSFCReader.LSFCMapper originalMapper = LSFCReader.loadFromClasspath("RLOrder.json");
+        // 从原始 LETI order 文件的 metadata 中获取全局边界
+        LSFCReader.LSFCMapper originalMapper = LSFCReader.loadFromClasspath("leti/tdrive/uni_order.json");
         LSFCReader.IndexMeta meta = originalMapper.getMetadata();
         
         double globalXmin, globalXmax, globalYmin, globalYmax;
@@ -289,7 +289,7 @@ public class BMTreeRLOrderGenerator {
     }
     
     /**
-     * 步骤5：生成RLOrder_BMTree.json文件
+     * 步骤5：生成 bmtree/tdrive/uni_order.json 文件
      */
     public static void generateRLOrderBMTree(
         List<QuadInfo> quads,
@@ -297,8 +297,8 @@ public class BMTreeRLOrderGenerator {
         String bmtreeConfigPath,
         String bmtreeBitLength
     ) throws IOException {
-        // 加载原始配置以获取metadata信息
-        LSFCReader.LSFCMapper originalMapper = LSFCReader.loadFromClasspath("RLOrder.json");
+        // 加载原始配置以获取 metadata 信息
+        LSFCReader.LSFCMapper originalMapper = LSFCReader.loadFromClasspath("leti/tdrive/uni_order.json");
         LSFCReader.IndexMeta originalMeta = originalMapper.getMetadata();
         
         ObjectMapper mapper = new ObjectMapper();

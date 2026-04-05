@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * Quad信息类
- * 用于存储从RLOrder.json中提取的quad信息以及计算出的新信息
+ * 用于存储从标准 order 文件中提取的 quad 信息以及计算出的新信息
  * 
  * @author hty
  */
@@ -14,7 +14,7 @@ public class QuadInfo implements Serializable {
     
     private static final long serialVersionUID = 1L;
     
-    // 从原始RLOrder.json中提取（不变）
+    // 从原始 order 文件中提取（不变）
     public long elementCode;
     public int level;
     public double xmin, ymin, xmax, ymax;
