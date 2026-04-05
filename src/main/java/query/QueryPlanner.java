@@ -26,6 +26,7 @@ import redis.clients.jedis.resps.Tuple;
 import scala.Tuple2;
 import index.RangeDebugBridge;
 import index.RangeStatsBridge;
+import utils.RedisPoolManager;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -376,20 +377,7 @@ public class QueryPlanner implements Closeable {
         }
         this.lastIndexRangeComputeNs = System.nanoTime() - indexRangeStartNs;
 
-        RangeStatsBridge.Stats stats = null;
-        switch (kind) {
-            case LETI:
-                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.LETI);
-                break;
-            case TShape:
-                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.TSHAPE);
-                break;
-            case XZ_STAR:
-                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.XZ_STAR);
-                break;
-            default:
-                break;
-        }
+        RangeStatsBridge.Stats stats = getRangeStats(kind);
 
         long visitedCellsLong = (stats != null) ? stats.visitedCellsByContainIntersect() : calculateVisitedCells(ranges);
         long redisAccessCount = (stats != null) ? stats.redisAccessCount : 0L;
@@ -427,7 +415,7 @@ public class QueryPlanner implements Closeable {
      * @param rowRanges 输出的行键范围列表
      */
     protected void secondaryRangesToRowkeys(String indexName, List<IndexRange> ranges, List<MultiRowRangeFilter.RowRange> rowRanges) {
-        try (Jedis jedis = new Jedis(tableConfig.getRedisHost(), 6379)) {
+        try (Jedis jedis = RedisPoolManager.getResource(tableConfig.getRedisHost())) {
             Pipeline pipeline = jedis.pipelined();
             List<Response<List<Tuple>>> responses = new ArrayList<>();
             for (IndexRange range : ranges) {
@@ -492,20 +480,7 @@ public class QueryPlanner implements Closeable {
         }
         this.lastIndexRangeComputeNs = System.nanoTime() - indexRangeStartNs;
 
-        RangeStatsBridge.Stats stats = null;
-        switch (kind) {
-            case LETI:
-                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.LETI);
-                break;
-            case TShape:
-                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.TSHAPE);
-                break;
-            case XZ_STAR:
-                stats = RangeStatsBridge.getLast(RangeStatsBridge.Kind.XZ_STAR);
-                break;
-            default:
-                break;
-        }
+        RangeStatsBridge.Stats stats = getRangeStats(kind);
 
         long visitedCellsLong = (stats != null) ? stats.visitedCellsByContainIntersect() : calculateVisitedCells(ranges);
         long redisAccessCount = (stats != null) ? stats.redisAccessCount : 0L;
@@ -518,20 +493,6 @@ public class QueryPlanner implements Closeable {
         this.lastRowRangeBuildNs = System.nanoTime() - rowRangeBuildStartNs;
 
         return new IndexRangeResult(ranges, rowRanges, visitedCells, redisAccessCount, redisShapeFilterRateScaled);
-    }
-
-    /**
-     * 统计访问的单元格数（VC, Visited Cells）。
-     * <p>
-     * 规则：
-     * - 覆盖情况（contained=true）：每个 range 计 1；
-     * - 非覆盖情况（contained=false）：按 [lower, upper] 宽度累计。
-     *
-     * @param ranges 逻辑索引范围列表
-     * @return 访问的单元格数
-     */
-    protected int countVisitedCells(List<IndexRange> ranges) {
-        return calculateVisitedCells(ranges);
     }
 
     private int calculateVisitedCells(List<IndexRange> ranges) {
@@ -619,10 +580,10 @@ public class QueryPlanner implements Closeable {
                         endRowF[0] = (byte) i;
                         ByteArraysWrapper.writeLong(range.lower(), startRowF, 1);
                         ByteArraysWrapper.writeLong(range.upper() + 1L, endRowF, 1);
-                        rowRanges.add(new MultiRowRangeFilter.RowRange(startRowF, true, endRowF, true));
+                        rowRanges.add(new MultiRowRangeFilter.RowRange(startRowF, true, endRowF, false));
                     }
                 } else {
-                    rowRanges.add(new MultiRowRangeFilter.RowRange(startRow, true, endRow, true));
+                    rowRanges.add(new MultiRowRangeFilter.RowRange(startRow, true, endRow, false));
                 }
             } catch (Exception e) {
 //                System.out.println();
@@ -654,10 +615,10 @@ public class QueryPlanner implements Closeable {
                         endRowF[0] = (byte) i;
                         ByteArraysWrapper.writeLong(range.lower(), startRowF, 1);
                         ByteArraysWrapper.writeLong(range.upper() + 1L, endRowF, 1);
-                        rowRanges.add(new MultiRowRangeFilter.RowRange(startRowF, true, endRowF, true));
+                        rowRanges.add(new MultiRowRangeFilter.RowRange(startRowF, true, endRowF, false));
                     }
                 } else {
-                    rowRanges.add(new MultiRowRangeFilter.RowRange(startRow, true, endRow, true));
+                    rowRanges.add(new MultiRowRangeFilter.RowRange(startRow, true, endRow, false));
                 }
             } catch (Exception e) {
 //                System.out.println();
@@ -697,7 +658,26 @@ public class QueryPlanner implements Closeable {
         return (int) value;
     }
 
+    private RangeStatsBridge.Stats getRangeStats(TableConfig.SpatialIndexKind kind) {
+        switch (kind) {
+            case LETI:
+                return RangeStatsBridge.getLast(RangeStatsBridge.Kind.LETI);
+            case TShape:
+                return RangeStatsBridge.getLast(RangeStatsBridge.Kind.TSHAPE);
+            case XZ_STAR:
+                return RangeStatsBridge.getLast(RangeStatsBridge.Kind.XZ_STAR);
+            default:
+                return null;
+        }
+    }
+
     private void updateDebugRangeCounts(TableConfig.SpatialIndexKind kind) {
+        RangeStatsBridge.Stats stats = getRangeStats(kind);
+        if (stats != null) {
+            this.lastQuadCodeRangeCount = clampToInt(stats.quadCodeRangeCount);
+            this.lastQOrderRangeCount = clampToInt(stats.qOrderRangeCount);
+            return;
+        }
         switch (kind) {
             case LETI: {
                 RangeDebugBridge.DebugRanges debugRanges = RangeDebugBridge.getLastLETI();

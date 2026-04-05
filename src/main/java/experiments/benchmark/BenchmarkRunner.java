@@ -220,6 +220,11 @@ public class BenchmarkRunner {
     }
 
     private String getRangeSummaryHeader() {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return "Method,Dataset,Distribution,QueryRange_Meters,"
+                    + "Latency_Avg,LogicalIndexRanges_Avg,RowKeyRanges_Avg,"
+                    + "Candidates_Avg,FinalResultCount_Avg,VisitedCells_Avg,IndexSize_KB";
+        }
         return "Method,Dataset,Distribution,QueryRange_Meters,"
                 + "Latency_Avg,LogicalIndexRanges_Avg,QuadCodeRanges_Avg,QOrderRanges_Avg,"
                 + "RowKeyRanges_Avg,Candidates_Avg,FinalResultCount_Avg,VisitedCells_Avg,"
@@ -227,6 +232,21 @@ public class BenchmarkRunner {
     }
 
     private String toRangeSummaryRow(ExperimentStats stats) {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return String.format(Locale.US,
+                    "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d",
+                    stats.getMethod().getShortName(),
+                    stats.getDataset().getDatasetName(),
+                    stats.getDataset().getDistribution(),
+                    stats.getDataset().getQueryRange(),
+                    stats.getLatencyStats().getAvg(),
+                    stats.getLogicIndexRangeStats().getAvg(),
+                    stats.getRowKeyRangeStats().getAvg(),
+                    stats.getCandidatesStats().getAvg(),
+                    stats.getFinalResultStats().getAvg(),
+                    stats.getVisitedCellsStats().getAvg(),
+                    stats.getIndexSizeKb());
+        }
         return String.format(Locale.US,
                 "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
                 stats.getMethod().getShortName(),

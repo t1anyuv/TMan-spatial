@@ -12,15 +12,15 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 class LETILocSIndex(
-    maxR: Short,
-    xBounds: (Double, Double),
-    yBounds: (Double, Double),
-    alpha: Int,
-    beta: Int,
-    adaptivePartition: Boolean = false,
-    orderDefinitionPath: String = LetiOrderResolver.DEFAULT_CANONICAL_PATH
-) extends LocSIndex(maxR, xBounds, yBounds, alpha, beta)
-    with Serializable {
+                     maxR: Short,
+                     xBounds: (Double, Double),
+                     yBounds: (Double, Double),
+                     alpha: Int,
+                     beta: Int,
+                     adaptivePartition: Boolean = false,
+                     orderDefinitionPath: String = LetiOrderResolver.DEFAULT_CANONICAL_PATH
+                   ) extends LocSIndex(maxR, xBounds, yBounds, alpha, beta)
+  with Serializable {
 
   private val mapper: LSFCReader.LSFCMapper =
     loadFromClasspath(LetiOrderResolver.resolveClasspathResource(orderDefinitionPath))
@@ -76,7 +76,7 @@ class LETILocSIndex(
    * - > 0 : 超过该长度时按块拆分，避免形成过宽 rowkey 区间
    */
   private val maxContainedOrderRunLength: Int =
-    java.lang.Integer.getInteger("tman.leti.maxContainedOrderRunLength", 32)
+    java.lang.Integer.getInteger("tman.leti.maxContainedOrderRunLength", 64)
 
   private val qOrderRoots: java.util.List[QOrderTreeNode] = buildQOrderTree()
 
@@ -92,13 +92,13 @@ class LETILocSIndex(
    * @return 索引范围列表
    */
   override def ranges(
-      lng1: Double,
-      lat1: Double,
-      lng2: Double,
-      lat2: Double,
-      jedis: Jedis,
-      indexTable: String
-  ): java.util.List[IndexRange] = {
+                       lng1: Double,
+                       lat1: Double,
+                       lng2: Double,
+                       lat2: Double,
+                       jedis: Jedis,
+                       indexTable: String
+                     ): java.util.List[IndexRange] = {
     val debug = java.lang.Boolean.getBoolean("tman.debug.leti")
     val debugLimit = 20
 
@@ -123,14 +123,14 @@ class LETILocSIndex(
 
     val pp = jedis.pipelined()
     case class IntersectTask(
-        qOrder: Int,
-        signature: Long,
-        cacheKey: String,
-        cachedTuples: java.util.List[redis.clients.jedis.resps.Tuple],
-        response: redis.clients.jedis.Response[_ <: java.util.Collection[
-          redis.clients.jedis.resps.Tuple
-        ]]
-    )
+                              qOrder: Int,
+                              signature: Long,
+                              cacheKey: String,
+                              cachedTuples: java.util.List[redis.clients.jedis.resps.Tuple],
+                              response: redis.clients.jedis.Response[_ <: java.util.Collection[
+                                redis.clients.jedis.resps.Tuple
+                              ]]
+                            )
     val intersectTasks = new java.util.ArrayList[IntersectTask]()
 
     addChildren(root, remaining)
@@ -297,6 +297,8 @@ class LETILocSIndex(
       RangeStatsBridge.Kind.LETI,
       containedQuadCount.toLong,
       intersectQuadCount.toLong,
+      mergeRanges(quadCodeRanges).size().toLong,
+      mergeRanges(qOrderRanges).size().toLong,
       redisAccessCount,
       redisShapeFilterRate
     )
@@ -307,6 +309,123 @@ class LETILocSIndex(
   /**
    * 与 TShape 默认 ranges 流程对齐的 LETI 版本。
    */
+  def rangesWithTShapeFlow(
+                            lng1: Double,
+                            lat1: Double,
+                            lng2: Double,
+                            lat2: Double,
+                            jedis: Jedis,
+                            indexTable: String
+                          ): java.util.List[IndexRange] = {
+    val queryWindow = QueryWindow(lng1, lat1, lng2, lat2)
+    val ranges = new java.util.ArrayList[IndexRange](100)
+    val quadCodeRanges = new java.util.ArrayList[IndexRange](256)
+    val qOrderRanges = new java.util.ArrayList[IndexRange](256)
+    val remaining = new java.util.ArrayDeque[TShapeEE](200)
+    val levelStop = TShapeEE(-1, -1, -1, -1, -1, -1)
+
+    root.split()
+    root.children.asScala.foreach(remaining.add)
+    remaining.add(levelStop)
+    var level: Short = 1
+
+    var containedQuadCount = 0
+    var intersectQuadCount = 0
+    var redisAccessCount: Long = 0L
+
+    def checkValue(quad: TShapeEE, level: Short): Unit = {
+      val quadCode = quad.elementCode
+      if (validQuadCodes.contains(quadCode)) {
+        if (quad.isContained(queryWindow)) {
+          containedQuadCount += 1
+          val qMin = quadCode
+          val qMax = quadCode + IS(level)
+          quadCodeRanges.add(IndexRange(qMin, qMax, contained = true))
+
+          val containedIntervals = getContainedIntervalsWithoutSplit(quad)
+          ranges.addAll(containedIntervals.rowKeyRanges)
+          qOrderRanges.addAll(containedIntervals.qOrderRanges)
+        } else if (quad.insertion(queryWindow)) {
+          intersectQuadCount += 1
+          quadCodeRanges.add(IndexRange(quadCode, quadCode, contained = false))
+
+          val quadOrder = quadCodeOrder.get(quadCode)
+          val parentQuad = quadCodeParentQuad.get(quadCode)
+
+          assert(quadOrder != null, s"Quad order should not be null for quadCode: $quadCode")
+          assert(parentQuad != null, s"Parent quad should not be null for quadCode: $quadCode")
+
+          qOrderRanges.add(IndexRange(quadOrder.toLong, quadOrder.toLong, contained = false))
+
+          val minScore = quadOrder.toLong << moveBits
+          val maxScore = ((quadOrder + 1L) << moveBits) - 1L
+          redisAccessCount += 1L
+          val result = jedis.zrangeByScoreWithScores(indexTable, minScore, maxScore)
+          if (result != null) {
+            val signature = calculateSignature(queryWindow, parentQuad)
+            val seenOriginIndex = new util.HashSet[lang.Long]()
+            val it = result.iterator()
+            while (it.hasNext) {
+              val elem = it.next()
+              val payload = elem.getBinaryElement
+              val originIndex = Bytes.toLong(payload, 8)
+              if (seenOriginIndex.add(lang.Long.valueOf(originIndex))) {
+                val shapeCode = originIndex & ((1L << moveBits) - 1L)
+                if ((signature & shapeCode) != 0L) {
+                  val shapeOrder = Bytes.toInt(payload, 4)
+                  val rowKey = (quadOrder.toLong << moveBits) | shapeOrder
+                  ranges.add(IndexRange(rowKey, rowKey, contained = false))
+                }
+              }
+            }
+          }
+
+          if (level < maxR) {
+            quad.split()
+            quad.children.asScala.foreach(remaining.add)
+          }
+        }
+      } else if (level < maxR) {
+        quad.split()
+        quad.children.asScala.foreach(remaining.add)
+      }
+    }
+
+    while (!remaining.isEmpty) {
+      val next = remaining.poll()
+      if (next.eq(levelStop)) {
+        if (!remaining.isEmpty && level < maxR) {
+          level = (level + 1).toShort
+          remaining.add(levelStop)
+        }
+      } else {
+        checkValue(next, level)
+      }
+    }
+
+    jedis.close()
+
+    LETILocSIndex.setLastRangeStats(
+      LETILocSIndex.RangeStats(
+        containedQuadCount.toLong,
+        intersectQuadCount.toLong,
+        redisAccessCount,
+        0L
+      )
+    )
+    RangeStatsBridge.setLast(
+      RangeStatsBridge.Kind.LETI,
+      containedQuadCount.toLong,
+      intersectQuadCount.toLong,
+      mergeRanges(quadCodeRanges).size().toLong,
+      mergeRanges(qOrderRanges).size().toLong,
+      redisAccessCount,
+      0L
+    )
+    RangeDebugBridge.setLastLETI(mergeRanges(quadCodeRanges), mergeRanges(qOrderRanges))
+    ranges
+  }
+
   def rangesWithNativeQOrderTree(
                                   lng1: Double,
                                   lat1: Double,
@@ -471,6 +590,8 @@ class LETILocSIndex(
       RangeStatsBridge.Kind.LETI,
       containedQuadCount.toLong,
       intersectQuadCount.toLong,
+      mergeRanges(quadCodeRanges).size().toLong,
+      mergeRanges(qOrderRanges).size().toLong,
       redisAccessCount,
       redisShapeFilterRate
     )
@@ -621,6 +742,9 @@ class LETILocSIndex(
         val code = codeBox.longValue()
         val order = quadCodeOrder.get(codeBox)
         val parent = quadCodeParentQuad.get(codeBox)
+        // Build the native tree from effective LETI nodes only:
+        // quad_code[0] / parent.elementCode is the effective node, while the
+        // remaining quad_code entries are absorbed raw descendants sharing the same order.
         if (order == null || parent == null) {
           None
         } else {
@@ -658,7 +782,11 @@ class LETILocSIndex(
 
     val stack = new java.util.ArrayDeque[QOrderTreeNode]()
     nodes.foreach { node =>
-      while (!stack.isEmpty && node.quadCode > stack.peekLast().subtreeUpper) {
+      // A valid LETI child must be fully contained in its parent's subtree interval.
+      // Checking only node.quadCode <= parent.subtreeUpper is not enough here,
+      // because a nested valid node may have a subtree that extends beyond that parent.
+      while (!stack.isEmpty &&
+        !(node.quadCode >= stack.peekLast().quadCode && node.subtreeUpper <= stack.peekLast().subtreeUpper)) {
         stack.removeLast()
       }
       if (stack.isEmpty) {
@@ -972,12 +1100,12 @@ object LETILocSIndex extends Serializable {
   }
 
   def apply(
-      g: Short,
-      xBounds: (Double, Double),
-      yBounds: (Double, Double),
-      alpha: Int,
-      beta: Int
-  ): LETILocSIndex = {
+             g: Short,
+             xBounds: (Double, Double),
+             yBounds: (Double, Double),
+             alpha: Int,
+             beta: Int
+           ): LETILocSIndex = {
     apply(g, xBounds, yBounds, alpha, beta, adaptivePartition = false)
   }
 
@@ -1029,13 +1157,13 @@ object LETILocSIndex extends Serializable {
   }
 
   def apply(
-      table: String,
-      g: Short,
-      xBounds: (Double, Double),
-      yBounds: (Double, Double),
-      alpha: Int,
-      beta: Int
-  ): LETILocSIndex = {
+             table: String,
+             g: Short,
+             xBounds: (Double, Double),
+             yBounds: (Double, Double),
+             alpha: Int,
+             beta: Int
+           ): LETILocSIndex = {
     apply(table, g, xBounds, yBounds, alpha, beta, adaptivePartition = false)
   }
 

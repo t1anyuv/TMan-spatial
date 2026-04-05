@@ -50,6 +50,7 @@ public class LetiLoader extends Loader {
         config.setIsXZ(0);
         config.setOrderEncodingType(1);
         config.setTspEncoding(1);
+//        config.setAdaptivePartition(1);
         String orderingPath = LetiOrderResolver.resolveClasspathResource(config.getOrderDefinitionPath());
         config.setOrderDefinitionPath(orderingPath);
         LSFCReader.LSFCMapper mapper = loadFromClasspath(orderingPath);
@@ -82,6 +83,7 @@ public class LetiLoader extends Loader {
         config.setIsXZ(0);
         config.setOrderEncodingType(1);
         config.setTspEncoding(1);
+//        config.setAdaptivePartition(1);
 
         String orderingPath = LetiOrderResolver.resolveClasspathResource(config.getOrderDefinitionPath());
         config.setOrderDefinitionPath(orderingPath);

@@ -5,6 +5,7 @@ import experiments.benchmark.config.DatasetConfig;
 import experiments.benchmark.config.IndexMethod;
 import experiments.benchmark.io.TableBuilder;
 import experiments.benchmark.model.ExperimentStats;
+import experiments.tman.BasicQuery;
 import lombok.Setter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -377,11 +378,11 @@ public class ComparisonExperiment {
                         locsWriter.newLine();
                     }
 
-                    // TSPEncoding subset
                     if (isTspEncodingMethod(method)) {
                         tspWriter.write(toTspCsvRowAvgOnly(stats));
                         tspWriter.newLine();
                     }
+
                 }
             }
 
@@ -427,6 +428,11 @@ public class ComparisonExperiment {
     }
 
     private String getMethodDistributionHeader() {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return "Method,Dataset,Distribution,QueryRange_Meters,"
+                    + "Latency_Avg,LogicalIndexRanges_Avg,Candidates_Avg,FinalResultCount_Avg,"
+                    + "RowKeyRanges_Avg,VisitedCells_Avg,IndexSize_KB";
+        }
         return "Method,Dataset,Distribution,QueryRange_Meters,"
                 + "Latency_Avg,LogicalIndexRanges_Avg,Candidates_Avg,FinalResultCount_Avg,"
                 + "QuadCodeRanges_Avg,QOrderRanges_Avg,RowKeyRanges_Avg,VisitedCells_Avg,"
@@ -434,6 +440,21 @@ public class ComparisonExperiment {
     }
 
     private String toMethodDistributionCsvRow(ExperimentStats stats) {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return String.format(Locale.US,
+                    "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d",
+                    stats.getMethod().getShortName(),
+                    stats.getDataset().getDatasetName(),
+                    stats.getDataset().getDistribution(),
+                    stats.getDataset().getQueryRange(),
+                    stats.getLatencyStats().getAvg(),
+                    stats.getLogicIndexRangeStats().getAvg(),
+                    stats.getCandidatesStats().getAvg(),
+                    stats.getFinalResultStats().getAvg(),
+                    stats.getRowKeyRangeStats().getAvg(),
+                    stats.getVisitedCellsStats().getAvg(),
+                    stats.getIndexSizeKb());
+        }
         return String.format(Locale.US,
                 "%s,%s,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
                 stats.getMethod().getShortName(),
@@ -468,11 +489,18 @@ public class ComparisonExperiment {
     }
 
     private String getLocSIndexHeaderAvgOnly() {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return "Method,Dataset,Distribution,QueryRange_Meters,"
+                    + "LogicalIndexRanges_Avg,RowKeyRanges_Avg,VisitedCells_Avg";
+        }
         return "Method,Dataset,Distribution,QueryRange_Meters,"
                 + "LogicalIndexRanges_Avg,QuadCodeRanges_Avg,QOrderRanges_Avg,RowKeyRanges_Avg,VisitedCells_Avg";
     }
 
     private String getTspHeaderAvgOnly() {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return "Method,Dataset,Distribution,QueryRange_Meters";
+        }
         return "Method,Dataset,Distribution,QueryRange_Meters,"
                 + "RedisAccessCount_Avg,RedisShapeFilterRate_Avg";
     }
@@ -494,6 +522,17 @@ public class ComparisonExperiment {
     }
 
     private String toLocSIndexCsvRowAvgOnly(ExperimentStats stats) {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return String.format(Locale.US,
+                    "%s,%s,%s,%d,%d,%d,%d",
+                    stats.getMethod().getShortName(),
+                    stats.getDataset().getDatasetName(),
+                    stats.getDataset().getDistribution(),
+                    stats.getDataset().getQueryRange(),
+                    stats.getLogicIndexRangeStats().getAvg(),
+                    stats.getRowKeyRangeStats().getAvg(),
+                    stats.getVisitedCellsStats().getAvg());
+        }
         return String.format(Locale.US,
                 "%s,%s,%s,%d,%d,%d,%d,%d,%d",
                 stats.getMethod().getShortName(),
@@ -508,6 +547,14 @@ public class ComparisonExperiment {
     }
 
     private String toTspCsvRowAvgOnly(ExperimentStats stats) {
+        if (BasicQuery.isCommonMetricsOnlyMode()) {
+            return String.format(Locale.US,
+                    "%s,%s,%s,%d",
+                    stats.getMethod().getShortName(),
+                    stats.getDataset().getDatasetName(),
+                    stats.getDataset().getDistribution(),
+                    stats.getDataset().getQueryRange());
+        }
         return String.format(Locale.US,
                 "%s,%s,%s,%d,%d,%d",
                 stats.getMethod().getShortName(),
@@ -517,7 +564,7 @@ public class ComparisonExperiment {
                 stats.getRedisAccessCountStats().getAvg(),
                 stats.getRedisShapeFilterRateScaledStats().getAvg());
     }
-    
+
     /**
      * 主入口
      * 参数: <query_base_dir> <data_base_dir> <output_dir> <dataset_name>
@@ -541,8 +588,8 @@ public class ComparisonExperiment {
         exp.addMethod(IndexMethod.LETI);
         exp.addMethod(IndexMethod.TSHAPE);
         exp.addMethod(IndexMethod.XZ_STAR);
-        exp.addMethod(IndexMethod.LMSFC);
-        exp.addMethod(IndexMethod.BMTREE);
+//        exp.addMethod(IndexMethod.LMSFC);
+//        exp.addMethod(IndexMethod.BMTREE);
         
         // 设置标准实验配置
         exp.setDatasetName(datasetName);

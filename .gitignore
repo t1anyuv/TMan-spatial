@@ -98,3 +98,9 @@ dump.rdb
 # Excel files (if generated)
 *.xlsx
 *.xls
+
+# Local workspace artifacts
+.cursor/
+.run/
+debug/
+.local-work/

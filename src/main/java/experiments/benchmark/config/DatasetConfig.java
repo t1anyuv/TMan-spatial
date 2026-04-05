@@ -19,7 +19,8 @@ public class DatasetConfig {
     public static final String GAUSSIAN = "gaussian";
     public static final String RANGE = "range";
     public static final List<Integer> QUERY_RANGES = Arrays.asList(100, 500, 1000, 1500, 2000);
-    public static final List<String> DISTRIBUTIONS = Arrays.asList(SKEWED, GAUSSIAN, UNIFORM);
+//    public static final List<String> DISTRIBUTIONS = Arrays.asList(SKEWED, GAUSSIAN, UNIFORM);
+    public static final List<String> DISTRIBUTIONS = Arrays.asList(SKEWED, UNIFORM);
     public static final List<Integer> NODES = Arrays.asList(2, 4, 6, 8);
 
     private String datasetName = T_DRIVE;
@@ -28,9 +29,9 @@ public class DatasetConfig {
     private String queryType = "SRQ";
     private int nodes = 4;
     private int resolution = 8;
-    private int alpha = 3;
-    private int beta = 3;
-    private int minTraj = 1;
+    private int alpha = 2;
+    private int beta = 2;
+    private int minTraj = 4;
     private int shards = 4;
 
     @Getter @Setter

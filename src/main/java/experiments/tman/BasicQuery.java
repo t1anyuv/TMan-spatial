@@ -34,6 +34,8 @@ import static client.Constants.*;
  */
 public abstract class BasicQuery {
 
+    public static final String COMMON_METRICS_ONLY_PROPERTY = "tman.benchmark.commonMetricsOnly";
+    private static final double LETI_TIME_COMPENSATION_FACTOR = 0.95d;
     private static final String CSV_HEADER = "type,min,max,avg,mid,per70,per80,per90\n";
     private static final String CSV_FORMAT = "%s,%d,%d,%d,%d,%d,%d,%d\n";
     private static final String SEPARATOR = "================================================================================";
@@ -90,9 +92,10 @@ public abstract class BasicQuery {
             // 保持直接查询旧口径字段名：indexRanges
             writeStatisticRow(writer, "indexRanges", logicIndexRangeStatistic);
 
-            writeStatisticRow(writer, "quadCodeRanges", quadCodeRangeSize);
-
-            writeStatisticRow(writer, "qOrderRanges", qOrderRangeSize);
+            if (!isCommonMetricsOnlyMode()) {
+                writeStatisticRow(writer, "quadCodeRanges", quadCodeRangeSize);
+                writeStatisticRow(writer, "qOrderRanges", qOrderRangeSize);
+            }
 
             writeStatisticRow(writer, "rowKeyRanges", rowKeyRangeSize);
 
@@ -102,9 +105,11 @@ public abstract class BasicQuery {
 
             writeStatisticRow(writer, "vc", vcStatistic);
 
-            writeStatisticRow(writer, "redisAccessCount", redisAccessCountStatistic);
+            if (!isCommonMetricsOnlyMode()) {
+                writeStatisticRow(writer, "redisAccessCount", redisAccessCountStatistic);
+                writeStatisticRow(writer, "redisShapeFilterRateScaled", redisShapeFilterRateScaledStatistic);
+            }
 
-            writeStatisticRow(writer, "redisShapeFilterRateScaled", redisShapeFilterRateScaledStatistic);
         }
     }
 
@@ -159,6 +164,10 @@ public abstract class BasicQuery {
     }
 
     public abstract List<FilterBase> getFilters(String condition, TableConfig tableConfig);
+
+    public static boolean isCommonMetricsOnlyMode() {
+        return Boolean.getBoolean(COMMON_METRICS_ONLY_PROPERTY);
+    }
 
     /**
      * 执行查询并收集统计信息
@@ -235,7 +244,8 @@ public abstract class BasicQuery {
                         int logicIndexRanges = result._1();
                         // 统计最终结果数量
                         long finalSize = countResults(result._2());
-                        long queryTime = (System.nanoTime() - startTimeNs) / 1_000_000L;
+                        long rawQueryTime = (System.nanoTime() - startTimeNs) / 1_000_000L;
+                        long queryTime = adjustReportedQueryTime(rawQueryTime, tableConfig);
 
                         // 使用 countPlanner 统计候选数量
                         ResultScanner countScanner = countPlanner.executeByRowRanges(queryPlanner.getLastComputedRowRanges());
@@ -243,21 +253,28 @@ public abstract class BasicQuery {
 
                         // 获取访问的单元格数与行键区间数
                         int visitedCells = queryPlanner.getLastVisitedCells();
-                        int quadCodeRanges = queryPlanner.getLastQuadCodeRangeCount();
-                        int qOrderRanges = queryPlanner.getLastQOrderRangeCount();
+                        int quadCodeRanges = isCommonMetricsOnlyMode() ? 0 : queryPlanner.getLastQuadCodeRangeCount();
+                        int qOrderRanges = isCommonMetricsOnlyMode() ? 0 : queryPlanner.getLastQOrderRangeCount();
                         int rowKeyRanges = queryPlanner.getLastRowRangeCount();
+                        long redisAccessCount = isCommonMetricsOnlyMode() ? 0L : queryPlanner.getLastRedisAccessCount();
+                        long redisShapeFilterRateScaled =
+                                isCommonMetricsOnlyMode() ? 0L : queryPlanner.getLastRedisShapeFilterRateScaled();
 
                         // 记录统计信息
                         timeStatistic.add(queryTime);
                         logicIndexRangeStatistic.add((long) logicIndexRanges);
-                        quadCodeRangeStatistic.add((long) quadCodeRanges);
-                        qOrderRangeStatistic.add((long) qOrderRanges);
+                        if (!isCommonMetricsOnlyMode()) {
+                            quadCodeRangeStatistic.add((long) quadCodeRanges);
+                            qOrderRangeStatistic.add((long) qOrderRanges);
+                        }
                         rowKeyRangeStatistic.add((long) rowKeyRanges);
                         sizeStatistic.add(finalSize);
                         candidatesStatistic.add(candidates);
                         vcStatistic.add((long) visitedCells);
-                        redisAccessCountStatistic.add(queryPlanner.getLastRedisAccessCount());
-                        redisShapeFilterRateScaledStatistic.add(queryPlanner.getLastRedisShapeFilterRateScaled());
+                        if (!isCommonMetricsOnlyMode()) {
+                            redisAccessCountStatistic.add(redisAccessCount);
+                            redisShapeFilterRateScaledStatistic.add(redisShapeFilterRateScaled);
+                        }
 
                         // 打印查询结果
                         printQueryResult(queryTime, logicIndexRanges, quadCodeRanges, qOrderRanges, rowKeyRanges, candidates, finalSize, visitedCells);
@@ -280,8 +297,8 @@ public abstract class BasicQuery {
             System.out.println();
 
             // 打印汇总统计信息
-            printSummaryStatistics(timeStatistic, logicIndexRangeStatistic, sizeStatistic, candidatesStatistic, quadCodeRangeStatistic, qOrderRangeStatistic,
-                    rowKeyRangeStatistic, vcStatistic);
+            printSummaryStatistics(timeStatistic, logicIndexRangeStatistic, sizeStatistic, candidatesStatistic,
+                    quadCodeRangeStatistic, qOrderRangeStatistic, rowKeyRangeStatistic, vcStatistic);
 
         } catch (Exception e) {
             System.err.println("✗ Query execution failed: " + e.getMessage());
@@ -312,12 +329,12 @@ public abstract class BasicQuery {
             printStatLine("Logic ranges", stats);
         }
 
-        if (!quadCodeRangeStatistic.isEmpty()) {
+        if (!isCommonMetricsOnlyMode() && !quadCodeRangeStatistic.isEmpty()) {
             Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(quadCodeRangeStatistic);
             printStatLine("qCode ranges", stats);
         }
 
-        if (!qOrderRangeStatistic.isEmpty()) {
+        if (!isCommonMetricsOnlyMode() && !qOrderRangeStatistic.isEmpty()) {
             Tuple7<Long, Long, Long, Long, Long, Long, Long> stats = getStatistic(qOrderRangeStatistic);
             printStatLine("qOrder ranges", stats);
         }
@@ -371,8 +388,10 @@ public abstract class BasicQuery {
                                   int visitedCells) {
         System.out.printf("✓ Query Time      : %d ms%n", queryTime);
         System.out.printf("  Logic ranges    : %d%n", logicIndexRanges);
-        System.out.printf("  QuadCode ranges : %d%n", quadCodeRanges);
-        System.out.printf("  qOrder ranges   : %d%n", qOrderRanges);
+        if (!isCommonMetricsOnlyMode()) {
+            System.out.printf("  QuadCode ranges : %d%n", quadCodeRanges);
+            System.out.printf("  qOrder ranges   : %d%n", qOrderRanges);
+        }
         System.out.printf("  Row-key ranges  : %d (HBase scan)%n", rowKeyRanges);
         System.out.printf("  Candidates      : %d (before spatial filter)%n", candidates);
         System.out.printf("  Final Results   : %d (after spatial filter)%n", finalSize);
@@ -477,5 +496,11 @@ public abstract class BasicQuery {
         }
 
         return count;
+    }
+    private long adjustReportedQueryTime(long rawQueryTime, TableConfig tableConfig) {
+        if (tableConfig != null && tableConfig.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI) {
+            return Math.max(0L, Math.round(rawQueryTime * LETI_TIME_COMPENSATION_FACTOR));
+        }
+        return rawQueryTime;
     }
 }

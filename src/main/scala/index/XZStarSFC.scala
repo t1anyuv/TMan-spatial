@@ -294,6 +294,8 @@ class XZStarSFC(
         containedQuadCount,
         intersectQuadCount,
         0L,
+        0L,
+        0L,
         0L
       )
       result.asJava
@@ -303,6 +305,8 @@ class XZStarSFC(
         RangeStatsBridge.Kind.XZ_STAR,
         containedQuadCount,
         intersectQuadCount,
+        0L,
+        0L,
         0L,
         0L
       )
