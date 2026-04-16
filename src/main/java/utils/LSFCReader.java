@@ -5,44 +5,40 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * RL Ordering 文件加载器
+ * Reader for the unified effective-node order format.
  * <p>
- * 用于加载和解析 RL Ordering 配置文件（仅支持 JSON 格式），
- * 该文件定义了四叉树节点的排序顺序、父节点信息和自适应划分参数。
- * <p>
- * 主要功能：
- * - 从 classpath 或文件系统加载 RL Ordering JSON 文件
- * - 解析四叉树编码到排序号的映射关系
- * - 解析父节点信息（边界、层级、自适应 alpha/beta）
- * - 计算并缓存最大形状位数（maxShapeBits）
- * - 提供线程安全的静态缓存机制
- * 
- * @author hty
+ * The current format stores only effective nodes. Each ordering item contains:
+ * - the effective node's {@code order}
+ * - the effective node's {@code parent} geometry/partition metadata
+ * - a {@code coverage} block describing the effective descendants covered by the node
  */
 public class LSFCReader {
 
-    /**
-     * 静态缓存：资源路径 -> LSFCMapper
-     * 使用 volatile + 双重检查锁定确保线程安全
-     */
+    /** Cached full mapper views keyed by normalized classpath resource path. */
     private static volatile Map<String, LSFCMapper> cache = new HashMap<>();
+
+    /** Cached effective-node indexes keyed by normalized classpath resource path. */
+    private static volatile Map<String, EffectiveNodeIndex> effectiveOnlyCache = new HashMap<>();
+
     private static final Object cacheLock = new Object();
 
     /**
-     * 从 classpath 加载 RL ordering 文件（带缓存）
-     * <p>
-     * 使用双重检查锁定机制确保线程安全，避免重复加载和解析。
-     * 首次加载后结果会被缓存，后续调用直接返回缓存结果。
-     * <p>
-     * 注意：当前版本仅支持 JSON 格式。
-     *
-     * @param resourcePath classpath 资源路径（如 "leti/tdrive/uni_order.json"）
-     * @return LSFCMapper 包含排序映射、父节点映射和元数据
-     * @throws IOException 文件读取异常或资源不存在
+     * Loads a classpath order file and materializes the full in-memory mapper view.
      */
     public static LSFCMapper loadFromClasspath(String resourcePath) throws IOException {
         String resolvedPath = LetiOrderResolver.resolveClasspathResource(resourcePath);
@@ -80,28 +76,55 @@ public class LSFCReader {
         }
     }
 
-    /**
-     * 清除静态缓存
-     * 主要用于测试场景，确保每次测试都重新加载文件。
-     * 生产环境不建议调用此方法。
-     */
+    /** Clears all static caches. Useful for tests and repeated file regeneration. */
     public static void clearCache() {
         synchronized (cacheLock) {
             cache = new HashMap<>();
+            effectiveOnlyCache = new HashMap<>();
         }
     }
 
     /**
-     * 从文件系统加载 RL ordering 文件
-     * 注意：此方法不使用缓存，每次调用都会重新解析文件。
-     * 如需缓存，请使用 loadFromClasspath 方法。
-     * <p>
-     * 注意：当前版本仅支持 JSON 格式。
-     *
-     * @param filePath 文件路径（必须是 .json 文件）
-     * @return LSFCMapper 包含排序映射、父节点映射和元数据
-     * @throws FileNotFoundException 文件不存在
-     * @throws IOException 文件读取异常
+     * Loads only the effective-node index view used by LETI storage-time parent resolution.
+     */
+    public static EffectiveNodeIndex loadEffectiveOnlyFromClasspath(String resourcePath) throws IOException {
+        String resolvedPath = LetiOrderResolver.resolveClasspathResource(resourcePath);
+        String normalizedPath = resolvedPath.startsWith("/") ? resolvedPath : "/" + resolvedPath;
+
+        EffectiveNodeIndex cached = effectiveOnlyCache.get(normalizedPath);
+        if (cached != null) {
+            return cached;
+        }
+
+        synchronized (cacheLock) {
+            cached = effectiveOnlyCache.get(normalizedPath);
+            if (cached != null) {
+                return cached;
+            }
+
+            InputStream inputStream = LSFCReader.class.getResourceAsStream(normalizedPath);
+            if (inputStream == null) {
+                throw new IOException("Resource not found in classpath: " + resourcePath + " (resolved: " + resolvedPath + ")");
+            }
+
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(inputStream);
+                EffectiveNodeIndex result = parseEffectiveNodeIndex(root);
+
+                Map<String, EffectiveNodeIndex> newCache = new HashMap<>(effectiveOnlyCache);
+                newCache.put(normalizedPath, result);
+                effectiveOnlyCache = newCache;
+
+                return result;
+            } finally {
+                inputStream.close();
+            }
+        }
+    }
+
+    /**
+     * Loads an order file from the local filesystem without classpath caching.
      */
     public static LSFCMapper load(String filePath) throws IOException {
         File file = new File(filePath);
@@ -115,107 +138,48 @@ public class LSFCReader {
     }
 
     /**
-     * 解析 JSON 格式的 RL ordering 文件
+     * Builds the full mapper view from the new effective-node-only format.
      * <p>
-     * JSON 格式示例：
-     * <pre>
-     * {
-     *   "ordering": [
-     *     {
-     *       "quad_code": [0, 65535, 70997],
-     *       "order": 0,
-     *       "parent": {
-     *         "xmin": -180.0, "ymin": -90.0,
-     *         "xmax": 180.0, "ymax": 90.0,
-     *         "alpha": 2, "beta": 3,
-     *         "level": 0, "elementCode": 0
-     *       }
-     *     }
-     *   ],
-     *   "metadata": {
-     *     "global_alpha": 2, "global_beta": 2,
-     *     "quadtree_max_level": 16,
-     *     "active_cells": 1000,
-     *     "max_shapes": 100,
-     *     "spatial_boundary": { ... }
-     *   }
-     * }
-     * </pre>
-     * 
-     * 语义说明：
-     * - quad_code 数组的第一个元素是父节点（有效节点），后续元素是子节点（无效节点）
-     * - 同一数组中的所有节点共享同一个 order 和 parent 信息
-     * - parent 字段包含父节点的边界、层级和自适应划分参数（alpha/beta）
-     * - 自动计算所有父节点中 alpha * beta 的最大值作为 maxShapeBits
-     * 
-     * @param root JSON 根节点
-     * @return LSFCMapper 包含排序映射、父节点映射和元数据
+     * Since the current format stores only effective nodes, {@code quadCodeOrder}
+     * and {@code quadCodeParentQuad} are keyed only by effective node codes.
      */
     private static LSFCMapper parseJsonNode(JsonNode root) {
         Map<Long, Integer> quadCodeOrderMap = new HashMap<>();
         Map<Long, ParentQuad> quadCodeToParentMap = new HashMap<>();
         Set<Long> validParentCodes = new HashSet<>();
 
-        IndexMeta metadata = null;
-        JsonNode metaNode = root.get("metadata");
-        if (metaNode != null) {
-            metadata = new IndexMeta();
-            metadata.global_alpha = metaNode.path("global_alpha").asInt(2);
-            metadata.global_beta = metaNode.path("global_beta").asInt(2);
-            metadata.max_level = metaNode.path("quadtree_max_level").asInt();
-            metadata.active_cells = metaNode.path("active_cells").asLong();
-            metadata.total_cells = metaNode.path("total_cells").asLong();
-            metadata.max_shapes = metaNode.path("max_shapes").asInt();
-            metadata.version = metaNode.path("version").asText("");
-            metadata.encoding_method = metaNode.path("encoding_method").asText("");
-            metadata.generation_timestamp = metaNode.path("generation_timestamp").asText("");
-            JsonNode boundaryNode = metaNode.get("spatial_boundary");
-            if (boundaryNode != null && !boundaryNode.isMissingNode()) {
-                metadata.boundary = new Envelope(
-                        boundaryNode.path("xmin").asDouble(),
-                        boundaryNode.path("ymin").asDouble(),
-                        boundaryNode.path("xmax").asDouble(),
-                        boundaryNode.path("ymax").asDouble());
-            }
-        }
-
+        IndexMeta metadata = parseMetadata(root);
         int maxShapeBits = 0;
         Set<Integer> distinctOrders = new HashSet<>();
+
         JsonNode orderingNode = root.get("ordering");
+        boolean sawExplicitSubtreeOrders = false;
+        boolean sawSubtreeCountHint = false;
         if (orderingNode != null && orderingNode.isArray()) {
             for (JsonNode item : orderingNode) {
                 int order = item.get("order").asInt();
                 distinctOrders.add(order);
-                JsonNode quadCodes = item.get("quad_code");
 
-                long parentCode = quadCodes.get(0).asLong();
-                validParentCodes.add(parentCode);
-
-                ParentQuad pq = null;
-                JsonNode p = item.get("parent");
-                if (p != null) {
-                    int pAlpha = p.get("alpha").asInt();
-                    int pBeta = p.get("beta").asInt();
-                    pq = new ParentQuad(
-                            p.get("xmin").asDouble(), p.get("ymin").asDouble(),
-                            p.get("xmax").asDouble(), p.get("ymax").asDouble(),
-                            pAlpha, pBeta,
-                            p.get("level").asInt(), p.get("elementCode").asLong()
-                    );
-                    quadCodeToParentMap.put(parentCode, pq);
-
-                    int shapeBits = pAlpha * pBeta;
-                    if (shapeBits > maxShapeBits) {
-                        maxShapeBits = shapeBits;
-                    }
+                ParentQuad parentQuad = parseParentQuad(item);
+                if (parentQuad == null) {
+                    continue;
                 }
 
-                for (JsonNode qc : quadCodes) {
-                    long currentCode = qc.asLong();
-                    quadCodeOrderMap.put(currentCode, order);
-                    if (pq != null) {
-                        quadCodeToParentMap.put(currentCode, pq);
-                    }
+                if (parentQuad.effectiveSubtreeOrders.length > 0) {
+                    sawExplicitSubtreeOrders = true;
+                }
+                if (parentQuad.validChildCount >= 0) {
+                    sawSubtreeCountHint = true;
+                }
+
+                long parentCode = parentQuad.elementCode;
+                validParentCodes.add(parentCode);
+                quadCodeOrderMap.put(parentCode, order);
+                quadCodeToParentMap.put(parentCode, parentQuad);
+
+                int shapeBits = parentQuad.alpha * parentQuad.beta;
+                if (shapeBits > maxShapeBits) {
+                    maxShapeBits = shapeBits;
                 }
             }
         }
@@ -223,58 +187,287 @@ public class LSFCReader {
         if (metadata != null) {
             metadata.maxShapeBits = maxShapeBits;
             metadata.orderCount = distinctOrders.size();
+            if (!metadata.contiguousSubtreeOrdersSpecified && sawSubtreeCountHint && !sawExplicitSubtreeOrders) {
+                metadata.contiguousSubtreeOrders = true;
+            }
         }
 
         return new LSFCMapper(quadCodeOrderMap, quadCodeToParentMap, validParentCodes, metadata);
     }
 
     /**
-     * 父节点信息类
+     * Builds a sorted effective-node index used to map raw quad codes back to
+     * the nearest effective ancestor stored in the order file.
+     */
+    private static EffectiveNodeIndex parseEffectiveNodeIndex(JsonNode root) throws IOException {
+        IndexMeta metadata = parseMetadata(root);
+        if (metadata == null) {
+            throw new IOException("Missing metadata in LETI order file");
+        }
+
+        List<EffectiveNodeEntry> entries = new ArrayList<>();
+        int maxShapeBits = 0;
+        Set<Integer> distinctOrders = new HashSet<>();
+
+        JsonNode orderingNode = root.get("ordering");
+        boolean sawExplicitSubtreeOrders = false;
+        boolean sawSubtreeCountHint = false;
+        if (orderingNode != null && orderingNode.isArray()) {
+            for (JsonNode item : orderingNode) {
+                int order = item.get("order").asInt();
+                distinctOrders.add(order);
+
+                ParentQuad parentQuad = parseParentQuad(item);
+                if (parentQuad == null) {
+                    continue;
+                }
+
+                if (parentQuad.effectiveSubtreeOrders.length > 0) {
+                    sawExplicitSubtreeOrders = true;
+                }
+                if (parentQuad.validChildCount >= 0) {
+                    sawSubtreeCountHint = true;
+                }
+
+                long elementCode = parentQuad.elementCode;
+                long subtreeUpper = intervalUpperBound(elementCode, parentQuad.level, metadata.maxLevel);
+                entries.add(new EffectiveNodeEntry(elementCode, subtreeUpper, order, parentQuad));
+
+                int shapeBits = parentQuad.alpha * parentQuad.beta;
+                if (shapeBits > maxShapeBits) {
+                    maxShapeBits = shapeBits;
+                }
+            }
+        }
+
+        metadata.maxShapeBits = maxShapeBits;
+        metadata.orderCount = distinctOrders.size();
+        if (!metadata.contiguousSubtreeOrdersSpecified && sawSubtreeCountHint && !sawExplicitSubtreeOrders) {
+            metadata.contiguousSubtreeOrders = true;
+        }
+        entries.sort(Comparator.comparingLong(entry -> entry.elementCode));
+        return new EffectiveNodeIndex(Collections.unmodifiableList(entries), metadata);
+    }
+
+    /** Parses metadata shared by both full and effective-only views. */
+    private static IndexMeta parseMetadata(JsonNode root) {
+        JsonNode metaNode = root.get("metadata");
+        if (metaNode == null || metaNode.isNull()) {
+            return null;
+        }
+
+        IndexMeta metadata = new IndexMeta();
+        metadata.globalAlpha = readInt(metaNode, 2, "global_alpha");
+        metadata.globalBeta = readInt(metaNode, 2, "global_beta");
+        metadata.maxLevel = readInt(metaNode, 0, "quadtree_max_level");
+        metadata.activeCells = readLong(metaNode, 0L, "active_cells");
+        metadata.totalCells = readLong(metaNode, 0L, "total_cells");
+        metadata.mutedCells = readLong(metaNode, 0L, "muted_cells");
+        metadata.maxShapes = readLong(metaNode, 0L, "max_shape_count");
+        metadata.maxPartitionAlpha = readInt(metaNode, 0, "max_partition_alpha");
+        metadata.maxPartitionBeta = readInt(metaNode, 0, "max_partition_beta");
+        metadata.maxPartition = readInt(metaNode, 0, "max_partition");
+        metadata.minTrajs = readInt(metaNode, 0, "min_trajs");
+        metadata.version = readText(metaNode, "", "version");
+        metadata.encodingMethod = readText(metaNode, "", "order_source");
+        metadata.generationTimestamp = readText(metaNode, "", "generation_timestamp");
+        metadata.contiguousSubtreeOrdersSpecified = hasAny(metaNode, "effective_subtree_contiguous");
+        metadata.contiguousSubtreeOrders = readBoolean(metaNode, false, "effective_subtree_contiguous");
+
+        JsonNode partitionSearchNode = metaNode.get("partition_search");
+        if (partitionSearchNode != null && partitionSearchNode.isArray()) {
+            metadata.partitionSearch = new int[partitionSearchNode.size()][];
+            for (int i = 0; i < partitionSearchNode.size(); i++) {
+                JsonNode pairNode = partitionSearchNode.get(i);
+                if (pairNode != null && pairNode.isArray() && pairNode.size() >= 2) {
+                    metadata.partitionSearch[i] = new int[] {
+                            pairNode.get(0).asInt(),
+                            pairNode.get(1).asInt()
+                    };
+                } else {
+                    metadata.partitionSearch[i] = new int[0];
+                }
+            }
+        }
+
+        if ((metadata.maxPartitionAlpha == 0 || metadata.maxPartitionBeta == 0) &&
+                partitionSearchNode != null && partitionSearchNode.isArray() && partitionSearchNode.size() > 0) {
+            JsonNode upperBound = partitionSearchNode.get(partitionSearchNode.size() - 1);
+            if (upperBound != null && upperBound.isArray() && upperBound.size() >= 2) {
+                metadata.maxPartitionAlpha = upperBound.get(0).asInt();
+                metadata.maxPartitionBeta = upperBound.get(1).asInt();
+            }
+        }
+
+        JsonNode boundaryNode = metaNode.get("spatial_boundary");
+        if (boundaryNode != null && !boundaryNode.isMissingNode()) {
+            metadata.boundary = new Envelope(
+                    readDouble(boundaryNode, 0.0, "xmin"),
+                    readDouble(boundaryNode, 0.0, "ymin"),
+                    readDouble(boundaryNode, 0.0, "xmax"),
+                    readDouble(boundaryNode, 0.0, "ymax"));
+        }
+        return metadata;
+    }
+
+    /** Parses the per-effective-node geometry and coverage hint payload. */
+    private static ParentQuad parseParentQuad(JsonNode item) {
+        JsonNode parentNode = item.get("parent");
+        if (parentNode == null || parentNode.isNull()) {
+            return null;
+        }
+
+        long elementCode = readLong(parentNode, Long.MIN_VALUE, "element_code");
+        if (elementCode == Long.MIN_VALUE) {
+            elementCode = readLong(item, Long.MIN_VALUE, "quad_code");
+        }
+        if (elementCode == Long.MIN_VALUE) {
+            return null;
+        }
+
+        return new ParentQuad(
+                readDouble(parentNode, 0.0, "xmin"),
+                readDouble(parentNode, 0.0, "ymin"),
+                readDouble(parentNode, 0.0, "xmax"),
+                readDouble(parentNode, 0.0, "ymax"),
+                readInt(parentNode, 0, "alpha"),
+                readInt(parentNode, 0, "beta"),
+                readInt(parentNode, 0, "level"),
+                elementCode,
+                parseEffectiveSubtreeCount(item),
+                parseEffectiveSubtreeOrders(item)
+        );
+    }
+
+    /** Reads the descendant count hint used by contiguous subtree coverage. */
+    private static int parseEffectiveSubtreeCount(JsonNode item) {
+        JsonNode coverageNode = item.get("coverage");
+        if (coverageNode == null || coverageNode.isNull()) {
+            return -1;
+        }
+
+        JsonNode subtreeNode = coverageNode.get("effective_subtree_count");
+        if (subtreeNode == null || subtreeNode.isNull()) {
+            return -1;
+        }
+        return subtreeNode.asInt(-1);
+    }
+
+    /** Reads the explicit descendant qOrder list used by non-contiguous coverage. */
+    private static int[] parseEffectiveSubtreeOrders(JsonNode item) {
+        JsonNode coverageNode = item.get("coverage");
+        if (coverageNode == null || coverageNode.isNull()) {
+            return new int[0];
+        }
+
+        JsonNode ordersNode = coverageNode.get("effective_subtree_orders");
+        if (ordersNode == null || !ordersNode.isArray() || ordersNode.size() == 0) {
+            return new int[0];
+        }
+
+        int[] orders = new int[ordersNode.size()];
+        for (int i = 0; i < ordersNode.size(); i++) {
+            orders[i] = ordersNode.get(i).asInt();
+        }
+        return orders;
+    }
+
+    private static boolean hasAny(JsonNode node, String... fieldNames) {
+        return getFirst(node, fieldNames) != null;
+    }
+
+    private static JsonNode getFirst(JsonNode node, String... fieldNames) {
+        if (node == null || fieldNames == null) {
+            return null;
+        }
+        for (String fieldName : fieldNames) {
+            if (fieldName == null) {
+                continue;
+            }
+            JsonNode value = node.get(fieldName);
+            if (value != null && !value.isNull() && !value.isMissingNode()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static int readInt(JsonNode node, int defaultValue, String... fieldNames) {
+        JsonNode value = getFirst(node, fieldNames);
+        return value == null ? defaultValue : value.asInt(defaultValue);
+    }
+
+    private static long readLong(JsonNode node, long defaultValue, String... fieldNames) {
+        JsonNode value = getFirst(node, fieldNames);
+        return value == null ? defaultValue : value.asLong(defaultValue);
+    }
+
+    private static double readDouble(JsonNode node, double defaultValue, String... fieldNames) {
+        JsonNode value = getFirst(node, fieldNames);
+        return value == null ? defaultValue : value.asDouble(defaultValue);
+    }
+
+    private static boolean readBoolean(JsonNode node, boolean defaultValue, String... fieldNames) {
+        JsonNode value = getFirst(node, fieldNames);
+        return value == null ? defaultValue : value.asBoolean(defaultValue);
+    }
+
+    private static String readText(JsonNode node, String defaultValue, String... fieldNames) {
+        JsonNode value = getFirst(node, fieldNames);
+        return value == null ? defaultValue : value.asText(defaultValue);
+    }
+
+    /** Computes the closed quad-code interval covered by an effective node's subtree. */
+    private static long intervalUpperBound(long elementCode, int level, int maxLevel) throws IOException {
+        if (level < 0 || maxLevel < level) {
+            throw new IOException("Invalid level/maxLevel pair: level=" + level + ", maxLevel=" + maxLevel);
+        }
+        int exponent = maxLevel - level + 1;
+        long power = 1L;
+        for (int i = 0; i < exponent; i++) {
+            if (power > Long.MAX_VALUE / 4L) {
+                throw new IOException("Interval size overflow for maxLevel=" + maxLevel + ", level=" + level);
+            }
+            power *= 4L;
+        }
+        return elementCode + ((power - 1L) / 3L);
+    }
+
+    /**
+     * Geometry and coverage information attached to one effective node.
      * <p>
-     * 存储四叉树节点的父节点信息，包括：
-     * - 空间边界（xmin, ymin, xmax, ymax）
-     * - 自适应划分参数（alpha, beta）
-     * - 四叉树层级（level）
-     * - 元素编码（elementCode）
-     * <p>
-     * 与 TShapeEE 的属性保持一致，用于在存储和查询时确定扩展单元格（EE）的边界和划分方式。
+     * The coverage fields describe only effective descendants:
+     * - {@code validChildCount}: number of descendant effective nodes when subtree qOrders are contiguous
+     * - {@code effectiveSubtreeOrders}: explicit descendant qOrders when they are not contiguous
      */
     @Getter
     public static class ParentQuad implements Serializable {
 
         private static final long serialVersionUID = 1L;
 
-        /** 空间边界：最小经度 */
+        /** Base cell bounds of the effective node. */
         public final double xmin;
-        /** 空间边界：最小纬度 */
         public final double ymin;
-        /** 空间边界：最大经度 */
         public final double xmax;
-        /** 空间边界：最大纬度 */
         public final double ymax;
-        /** 自适应划分参数：X 方向网格数 */
+
+        /** Adaptive partition shape used inside this effective node's EE. */
         public final int alpha;
-        /** 自适应划分参数：Y 方向网格数 */
         public final int beta;
-        /** 四叉树层级 */
+
+        /** Quadtree level and code of the effective node itself. */
         public final int level;
-        /** 元素编码（四叉树编码） */
         public final long elementCode;
 
-        /**
-         * 构造函数
-         * 
-         * @param xmin 最小经度
-         * @param ymin 最小纬度
-         * @param xmax 最大经度
-         * @param ymax 最大纬度
-         * @param alpha X 方向网格数
-         * @param beta Y 方向网格数
-         * @param level 四叉树层级
-         * @param elementCode 元素编码
-         */
+        /** Descendant effective-node count hint for contiguous qOrder subtrees. */
+        public final int validChildCount;
+
+        /** Explicit descendant qOrders for non-contiguous subtree coverage. */
+        public final int[] effectiveSubtreeOrders;
+
         public ParentQuad(double xmin, double ymin, double xmax, double ymax,
-                          int alpha, int beta, int level, long elementCode) {
+                          int alpha, int beta, int level, long elementCode, int validChildCount,
+                          int[] effectiveSubtreeOrders) {
             this.xmin = xmin;
             this.ymin = ymin;
             this.xmax = xmax;
@@ -283,45 +476,34 @@ public class LSFCReader {
             this.beta = beta;
             this.level = level;
             this.elementCode = elementCode;
+            this.validChildCount = validChildCount;
+            this.effectiveSubtreeOrders = effectiveSubtreeOrders == null ? new int[0] : effectiveSubtreeOrders;
         }
     }
 
     /**
-     * RL Ordering 数据映射器
+     * Full in-memory view of an order file keyed by effective node code.
      * <p>
-     * 包含从 RL Ordering 文件解析出的所有数据：
-     * - 四叉树编码到排序号的映射
-     * - 四叉树编码到父节点信息的映射
-     * - 有效节点集合（父节点集合）
-     * - 元数据信息（全局参数、最大形状位数等）
+     * In the unified format only effective nodes are materialized, so these maps
+     * intentionally do not contain absorbed raw descendants.
      */
     @Getter
     public static class LSFCMapper implements Serializable {
 
         private static final long serialVersionUID = 1L;
 
-        /** 四叉树编码 -> 排序号映射 */
+        /** Effective node code -> qOrder. */
         public final Map<Long, Integer> quadCodeOrder;
 
-        /** 四叉树编码 -> 父节点信息映射 */
+        /** Effective node code -> geometry / coverage descriptor. */
         public final Map<Long, ParentQuad> quadCodeParentQuad;
 
-        /** 有效节点集合（父节点集合），不可修改 */
+        /** Set of all effective node codes present in the file. */
         public final Set<Long> validQuadCodes;
 
-        /** 按 quad code 排序后的有效节点集合，用于范围查询 */
-        public final NavigableSet<Long> sortedQuadCodes;
-
-        /** 元数据信息 */
+        /** File-level metadata. */
         public final IndexMeta metadata;
 
-        /**
-         * 构造函数
-         * 
-         * @param quadCodeOrder 四叉树编码到排序号的映射
-         * @param quadCodeParentQuad 四叉树编码到父节点信息的映射
-         * @param metadata 元数据信息
-         */
         public LSFCMapper(Map<Long, Integer> quadCodeOrder,
                           Map<Long, ParentQuad> quadCodeParentQuad,
                           Set<Long> validQuadCodes,
@@ -329,53 +511,102 @@ public class LSFCReader {
             this.quadCodeOrder = quadCodeOrder != null ? quadCodeOrder : Collections.emptyMap();
             this.quadCodeParentQuad = quadCodeParentQuad != null ? quadCodeParentQuad : Collections.emptyMap();
             this.metadata = metadata;
-            TreeSet<Long> sortedCodes = new TreeSet<>(validQuadCodes != null ? validQuadCodes : Collections.emptySet());
-            this.validQuadCodes = Collections.unmodifiableSet(sortedCodes);
-            this.sortedQuadCodes = Collections.unmodifiableNavigableSet(sortedCodes);
+            this.validQuadCodes = Collections.unmodifiableSet(
+                    validQuadCodes != null ? new HashSet<Long>(validQuadCodes) : Collections.<Long>emptySet());
+        }
+    }
+
+    /** One effective node plus its subtree interval, used for ancestor lookup. */
+    public static class EffectiveNodeEntry implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        public final long elementCode;
+        public final long subtreeUpper;
+        public final int order;
+        public final ParentQuad parentQuad;
+
+        public EffectiveNodeEntry(long elementCode, long subtreeUpper, int order, ParentQuad parentQuad) {
+            this.elementCode = elementCode;
+            this.subtreeUpper = subtreeUpper;
+            this.order = order;
+            this.parentQuad = parentQuad;
         }
     }
 
     /**
-     * 索引元数据类
-     * <p>
-     * 存储 RL Ordering 文件的元数据信息，包括全局参数、空间边界和统计信息。
+     * Sorted effective-node list used to map arbitrary raw quad codes back to the
+     * nearest effective ancestor stored in the order file.
      */
+    public static class EffectiveNodeIndex implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        public final List<EffectiveNodeEntry> entries;
+        public final IndexMeta metadata;
+
+        public EffectiveNodeIndex(List<EffectiveNodeEntry> entries, IndexMeta metadata) {
+            this.entries = entries == null ? Collections.emptyList() : entries;
+            this.metadata = metadata;
+        }
+
+        /**
+         * Finds the nearest effective ancestor whose subtree interval still covers
+         * the supplied raw quad code.
+         */
+        public EffectiveNodeEntry resolveNearestEffectiveParent(long rawQuadCode) {
+            int left = 0;
+            int right = entries.size() - 1;
+            int candidate = -1;
+            while (left <= right) {
+                int mid = (left + right) >>> 1;
+                long code = entries.get(mid).elementCode;
+                if (code <= rawQuadCode) {
+                    candidate = mid;
+                    left = mid + 1;
+                } else {
+                    right = mid - 1;
+                }
+            }
+
+            for (int i = candidate; i >= 0; i--) {
+                EffectiveNodeEntry entry = entries.get(i);
+                if (rawQuadCode <= entry.subtreeUpper) {
+                    return entry;
+                }
+            }
+            return null;
+        }
+    }
+
+    /** Metadata block attached to the unified effective-node order file. */
     public static class IndexMeta implements Serializable {
         private static final long serialVersionUID = 1L;
 
-        /** 最大形状数量 */
-        public long max_shapes;
-        /** 全局 X 方向网格数 */
-        public int global_alpha;
-        /** 全局 Y 方向网格数 */
-        public int global_beta;
-        /** 四叉树最大层级 */
-        public int max_level;
-
-        /** 活跃单元格数量 */
-        public long active_cells;
-        /** 总单元格数量 */
-        public long total_cells;
-
-        /** 空间边界 */
+        public long maxShapes;
+        public int globalAlpha;
+        public int globalBeta;
+        public int maxLevel;
+        public long activeCells;
+        public long totalCells;
+        public long mutedCells;
         public Envelope boundary;
+        public int maxPartitionAlpha;
+        public int maxPartitionBeta;
+        public int maxPartition;
+        public int minTrajs;
+        public int[][] partitionSearch;
 
-        /**
-         * 自适应划分时的最大形状位数
-         * <p>
-         * 等于所有 ParentQuad 中 alpha * beta 的最大值。
-         * 用于统一编码空间，确保不同父节点的形状编码不会重叠。
-         */
+        /** Largest {@code alpha * beta} across all effective nodes. */
         public int maxShapeBits;
-        /** Order group count after deduplicating identical order ids */
+
+        /** Number of distinct qOrders stored in the file. */
         public int orderCount;
-        /** Metadata version from order file */
+
         public String version;
-        /** Optional encoding method marker */
-        public String encoding_method;
-        /** Optional generation timestamp */
-        public String generation_timestamp;
+        public String encodingMethod;
+        public String generationTimestamp;
+
+        /** True when each effective node covers one contiguous qOrder interval. */
+        public boolean contiguousSubtreeOrders;
+        public boolean contiguousSubtreeOrdersSpecified;
     }
 }
-
-

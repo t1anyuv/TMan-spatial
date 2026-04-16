@@ -185,6 +185,12 @@ public class Loader implements Closeable, Serializable {
     }
 
     /**
+     * Allow index-specific loaders to append only their own metadata fields.
+     */
+    protected void appendIndexMeta(Put put) {
+    }
+
+    /**
      * 存储主表数据
      * 使用 Spark 读取源数据，生成索引，并写入 HBase 主表和 Redis 索引
      *
@@ -509,11 +515,7 @@ public class Loader implements Closeable, Serializable {
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_XZ), Bytes.toBytes(config.getIsXZ()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_TSP_ENCODING), Bytes.toBytes(config.getTspEncoding()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ORDER_ENCODING_TYPE), Bytes.toBytes(config.getOrderEncodingType()));
-        if (config.getOrderDefinitionPath() != null && !config.getOrderDefinitionPath().isEmpty()) {
-            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ORDER_DEFINITION_PATH), Bytes.toBytes(config.getOrderDefinitionPath()));
-        }
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ADAPTIVE_PARTITION), Bytes.toBytes(config.getAdaptivePartition()));
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_MAX_SHAPE_BITS), Bytes.toBytes(config.getMaxShapeBits()));
+        appendIndexMeta(put);
         if (config.getLetiOrderName() != null && !config.getLetiOrderName().isEmpty()) {
             put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_NAME), Bytes.toBytes(config.getLetiOrderName()));
         }

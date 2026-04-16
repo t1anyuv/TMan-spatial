@@ -3,6 +3,7 @@ package experiments.benchmark;
 import config.TableConfig;
 import experiments.benchmark.config.DatasetConfig;
 import experiments.benchmark.config.IndexMethod;
+import experiments.benchmark.io.BenchmarkTableCleaner;
 import experiments.benchmark.io.TableBuilder;
 import experiments.benchmark.model.ExperimentStats;
 import experiments.tman.BasicQuery;
@@ -138,8 +139,7 @@ public class ComparisonExperiment {
                 TableName hTableName = TableName.valueOf(tableName);
                 if (admin.tableExists(hTableName)) {
                     System.out.println("Table exists, deleting and recreating: " + tableName);
-                    admin.disableTable(hTableName);
-                    admin.deleteTable(hTableName);
+                    BenchmarkTableCleaner.deleteTableArtifacts(admin, tableName, "127.0.0.1");
                     System.out.println("Table deleted: " + tableName);
                 }
                 
@@ -198,7 +198,7 @@ public class ComparisonExperiment {
      */
     private void configureLETI(DatasetConfig dataset, TableConfig config) {
         String orderDefinitionPath = resolveLetiOrderingPath(dataset);
-        config.setAdaptivePartition(0);
+        config.setAdaptivePartition(1);
         config.setOrderDefinitionPath(orderDefinitionPath);
         System.out.println("Configuring LETI index:");
         System.out.println("  - adaptivePartition: 1");
@@ -208,8 +208,8 @@ public class ComparisonExperiment {
     private String resolveLetiOrderingPath(DatasetConfig dataset) {
         String datasetKey = normalizeDatasetName(dataset.getDatasetName());
         String distKey = normalizeDistributionName(dataset.getDistribution());
-        String candidate = String.format("leti/%s/%s_order.json", datasetKey, distKey);
         ClassLoader cl = ComparisonExperiment.class.getClassLoader();
+        String candidate = String.format("leti/%s/comparison/%s_order.json", datasetKey, distKey);
         if (cl.getResource(candidate) != null) {
             return LetiOrderResolver.resolveClasspathResource(candidate);
         }
@@ -289,15 +289,11 @@ public class ComparisonExperiment {
                  Admin admin = connection.getAdmin()) {
                 
                 for (String tableName : createdTables) {
-                    TableName hTableName = TableName.valueOf(tableName);
-                    if (admin.tableExists(hTableName)) {
-                        try {
-                            admin.disableTable(hTableName);
-                            admin.deleteTable(hTableName);
-                            System.out.println("Deleted table: " + tableName);
-                        } catch (Exception e) {
-                            System.err.println("Error deleting table " + tableName + ": " + e.getMessage());
-                        }
+                    try {
+                        BenchmarkTableCleaner.deleteTableArtifacts(admin, tableName, "127.0.0.1");
+                        System.out.println("Deleted table artifacts: " + tableName);
+                    } catch (Exception e) {
+                        System.err.println("Error deleting table artifacts " + tableName + ": " + e.getMessage());
                     }
                 }
             }
@@ -436,7 +432,7 @@ public class ComparisonExperiment {
         return "Method,Dataset,Distribution,QueryRange_Meters,"
                 + "Latency_Avg,LogicalIndexRanges_Avg,Candidates_Avg,FinalResultCount_Avg,"
                 + "QuadCodeRanges_Avg,QOrderRanges_Avg,RowKeyRanges_Avg,VisitedCells_Avg,"
-                + "RedisAccessCount_Avg,RedisShapeFilterRate_Avg,IndexSize_KB";
+                + "RedisAccessCount_Avg,RedisShapeFilterRateScaled_Avg,IndexSize_KB";
     }
 
     private String toMethodDistributionCsvRow(ExperimentStats stats) {
@@ -498,11 +494,8 @@ public class ComparisonExperiment {
     }
 
     private String getTspHeaderAvgOnly() {
-        if (BasicQuery.isCommonMetricsOnlyMode()) {
-            return "Method,Dataset,Distribution,QueryRange_Meters";
-        }
         return "Method,Dataset,Distribution,QueryRange_Meters,"
-                + "RedisAccessCount_Avg,RedisShapeFilterRate_Avg";
+                + "RedisAccessCount_Avg,RedisShapeFilterRateScaled_Avg";
     }
 
     private String toCommonCsvRowAvgOnly(ExperimentStats stats) {
@@ -547,14 +540,6 @@ public class ComparisonExperiment {
     }
 
     private String toTspCsvRowAvgOnly(ExperimentStats stats) {
-        if (BasicQuery.isCommonMetricsOnlyMode()) {
-            return String.format(Locale.US,
-                    "%s,%s,%s,%d",
-                    stats.getMethod().getShortName(),
-                    stats.getDataset().getDatasetName(),
-                    stats.getDataset().getDistribution(),
-                    stats.getDataset().getQueryRange());
-        }
         return String.format(Locale.US,
                 "%s,%s,%s,%d,%d,%d",
                 stats.getMethod().getShortName(),

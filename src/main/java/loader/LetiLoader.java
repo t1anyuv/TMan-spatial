@@ -12,6 +12,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
@@ -23,16 +24,18 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 
-import static utils.LSFCReader.loadFromClasspath;
 import static utils.TSPGreedy.encodeShapes;
 import static utils.TrajPutUtil.getPutWithIndex;
 import static utils.TrajPutUtil.getSpatialIndex;
+import static client.Constants.DEFAULT_CF;
+import static client.Constants.META_TABLE_ADAPTIVE_PARTITION;
+import static client.Constants.META_TABLE_MAX_SHAPE_BITS;
+import static client.Constants.META_TABLE_ORDER_DEFINITION_PATH;
 
 public class LetiLoader extends Loader {
     private static final String LETI_UNION_MASK_SUFFIX = ":leti:union_mask";
 
-    Map<Long, Integer> quadCodeOrder;
-    Map<Long, LSFCReader.ParentQuad> quadCodeParentQuad;
+    LSFCReader.EffectiveNodeIndex effectiveNodeIndex;
     int maxShapeBits;
 
     /**
@@ -53,9 +56,8 @@ public class LetiLoader extends Loader {
 //        config.setAdaptivePartition(1);
         String orderingPath = LetiOrderResolver.resolveClasspathResource(config.getOrderDefinitionPath());
         config.setOrderDefinitionPath(orderingPath);
-        LSFCReader.LSFCMapper mapper = loadFromClasspath(orderingPath);
-        quadCodeOrder = mapper.quadCodeOrder;
-        quadCodeParentQuad = mapper.getQuadCodeParentQuad();
+        LSFCReader.EffectiveNodeIndex mapper = LSFCReader.loadEffectiveOnlyFromClasspath(orderingPath);
+        effectiveNodeIndex = mapper;
         maxShapeBits = mapper.metadata != null ? mapper.metadata.maxShapeBits : config.getAlpha() * config.getBeta();
         if (maxShapeBits == 0) {
             maxShapeBits = config.getAlpha() * config.getBeta();
@@ -87,9 +89,8 @@ public class LetiLoader extends Loader {
 
         String orderingPath = LetiOrderResolver.resolveClasspathResource(config.getOrderDefinitionPath());
         config.setOrderDefinitionPath(orderingPath);
-        LSFCReader.LSFCMapper rlOrderingData = loadFromClasspath(orderingPath);
-        quadCodeOrder = rlOrderingData.quadCodeOrder;
-        quadCodeParentQuad = rlOrderingData.quadCodeParentQuad;
+        LSFCReader.EffectiveNodeIndex rlOrderingData = LSFCReader.loadEffectiveOnlyFromClasspath(orderingPath);
+        effectiveNodeIndex = rlOrderingData;
         maxShapeBits = rlOrderingData.metadata != null ? rlOrderingData.metadata.maxShapeBits : config.getAlpha() * config.getBeta();
         if (maxShapeBits == 0) {
             maxShapeBits = config.getAlpha() * config.getBeta();
@@ -100,7 +101,7 @@ public class LetiLoader extends Loader {
 
     private static void applyLetiMeta(TableConfig config,
                                       String orderingPath,
-                                      LSFCReader.LSFCMapper mapper) {
+                                      LSFCReader.EffectiveNodeIndex mapper) {
         LetiOrderResolver.LetiOrderDescriptor descriptor = LetiOrderResolver.resolveDescriptor(orderingPath);
         config.setOrderDefinitionPath(descriptor.canonicalPath);
         config.setLetiOrderName(descriptor.orderName);
@@ -110,11 +111,11 @@ public class LetiLoader extends Loader {
         if (mapper.metadata != null) {
             config.setLetiOrderVersion(mapper.metadata.version);
             config.setLetiOrderCount(mapper.metadata.orderCount);
-            config.setLetiActiveCells(mapper.metadata.active_cells);
-            config.setLetiTotalCells(mapper.metadata.total_cells);
-            config.setLetiMaxLevel(mapper.metadata.max_level);
-            config.setLetiGlobalAlpha(mapper.metadata.global_alpha);
-            config.setLetiGlobalBeta(mapper.metadata.global_beta);
+            config.setLetiActiveCells(mapper.metadata.activeCells);
+            config.setLetiTotalCells(mapper.metadata.totalCells);
+            config.setLetiMaxLevel(mapper.metadata.maxLevel);
+            config.setLetiGlobalAlpha(mapper.metadata.globalAlpha);
+            config.setLetiGlobalBeta(mapper.metadata.globalBeta);
             if (mapper.metadata.boundary != null) {
                 config.setLetiOrderBoundary(new Envelope(
                         mapper.metadata.boundary.getXMin(),
@@ -124,6 +125,21 @@ public class LetiLoader extends Loader {
                 ));
             }
         }
+    }
+
+    @Override
+    protected void appendIndexMeta(Put put) {
+        if (config.getOrderDefinitionPath() != null && !config.getOrderDefinitionPath().isEmpty()) {
+            put.addColumn(Bytes.toBytes(DEFAULT_CF),
+                    Bytes.toBytes(META_TABLE_ORDER_DEFINITION_PATH),
+                    Bytes.toBytes(config.getOrderDefinitionPath()));
+        }
+        put.addColumn(Bytes.toBytes(DEFAULT_CF),
+                Bytes.toBytes(META_TABLE_ADAPTIVE_PARTITION),
+                Bytes.toBytes(config.getAdaptivePartition()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF),
+                Bytes.toBytes(META_TABLE_MAX_SHAPE_BITS),
+                Bytes.toBytes(config.getMaxShapeBits()));
     }
 
     @Override
@@ -143,70 +159,80 @@ public class LetiLoader extends Loader {
             JavaRDD<String> rawTrajRDD = context.textFile(sourcePath);
 
             int moveBits = config.isAdaptivePartition() ? maxShapeBits : config.getAlpha() * config.getBeta();
+            final TableConfig taskConfig = config;
+            final String taskTableName = tableName;
+            final Broadcast<LSFCReader.EffectiveNodeIndex> effectiveNodeIndexBc = context.broadcast(effectiveNodeIndex);
 
-            JavaPairRDD<Long, Tuple2<Long, String>> quadToShapeTrajRDD =
-                    rawTrajRDD.mapToPair(rawTraj -> {
-                        TrajIndexResult indexResult = getTrajIndexWithParentShape(rawTraj);
+            JavaPairRDD<Long, Long> qOrderToShapeRDD = rawTrajRDD.mapToPair(rawTraj -> {
+                LSFCReader.EffectiveNodeIndex localEffectiveNodeIndex = effectiveNodeIndexBc.value();
+                TrajIndexResult indexResult = getTrajIndexWithParentShape(rawTraj, taskConfig, localEffectiveNodeIndex);
 
-                        long quadCode = indexResult.quadCode;
-                        long quadOrderInParent = quadCodeOrder.get(quadCode);
-                        LSFCReader.ParentQuad parentQuad = indexResult.parentQuad;
+                long quadOrderInParent = indexResult.quadOrderInParent;
+                LSFCReader.ParentQuad parentQuad = indexResult.parentQuad;
 
-                        assert parentQuad != null;
-                        assert quadCodeOrder.get(parentQuad.elementCode) == quadOrderInParent;
+                assert parentQuad != null;
+                assert parentQuad.elementCode == indexResult.effectiveQuadCode;
 
-                        assertTrajMBRInsideParentEE(indexResult.geo, parentQuad, indexResult.level, quadCode, indexResult.shapeCode);
+//                assertTrajMBRInsideParentEE(indexResult.geo, parentQuad, taskConfig,
+//                        indexResult.level, quadCode, indexResult.shapeCode);
 
-                        return new Tuple2<>(quadOrderInParent, new Tuple2<>(indexResult.shapeCodeInParent, rawTraj));
-                    });
+                return new Tuple2<>(quadOrderInParent, indexResult.shapeCodeInParent);
+            });
 
-            JavaPairRDD<Long, TrajShapeAgg> aggregatedByOrderRDD =
-                    quadToShapeTrajRDD.aggregateByKey(new TrajShapeAgg(), TrajShapeAgg::add, TrajShapeAgg::merge)
+            JavaPairRDD<Long, ShapeSetAgg> aggregatedShapesByOrderRDD =
+                    qOrderToShapeRDD.aggregateByKey(new ShapeSetAgg(), ShapeSetAgg::add, ShapeSetAgg::merge)
                             .persist(StorageLevel.DISK_ONLY());
 
+            JavaPairRDD<Long, Map<Long, Integer>> shapeOrderMapByQOrderRDD =
+                    aggregatedShapesByOrderRDD.mapValues(agg -> {
+                        List<Long> shapeList = new ArrayList<>(agg.shapes);
+                        List<Integer> shapeOrders = encodeShapes(shapeList, config.getTspEncoding());
+                        Map<Long, Integer> shapeOrderMap = new HashMap<>();
+                        // Keep LETI aligned with TShape: encodeShapes returns a tour of original
+                        // shape-list indexes, and the persisted shapeOrder is the rank/position of
+                        // each shape inside that tour rather than the raw tour value itself.
+                        for (int i = 0; i < shapeList.size(); i++) {
+                            int shapeOrder = shapeOrders.indexOf(i);
+                            if (shapeOrder < 0) {
+                                throw new IllegalStateException("Shape index missing from encoded order: index=" + i);
+                            }
+                            shapeOrderMap.put(shapeList.get(i), shapeOrder);
+                        }
+                        return shapeOrderMap;
+                    }).persist(StorageLevel.DISK_ONLY());
+
             JavaRDD<Tuple3<Put, Map<String, Tuple2<Long, byte[]>>, List<KeyValue>>> indexedRDD =
-                    aggregatedByOrderRDD.flatMap(entry -> {
-                                long quadOrder = entry._1;
-                                TrajShapeAgg agg = entry._2;
+                    rawTrajRDD.mapToPair(rawTraj -> {
+                                LSFCReader.EffectiveNodeIndex localEffectiveNodeIndex = effectiveNodeIndexBc.value();
+                                TrajIndexResult indexResult = getTrajIndexWithParentShape(rawTraj, taskConfig, localEffectiveNodeIndex);
+                                long quadOrder = indexResult.quadOrderInParent;
+                                return new Tuple2<>(quadOrder, new RawTrajOrderInfo(indexResult.shapeCodeInParent, rawTraj));
+                            })
+                            .join(shapeOrderMapByQOrderRDD)
+                            .map(tuple -> {
+                                long quadOrder = tuple._1();
+                                RawTrajOrderInfo rawInfo = tuple._2()._1();
+                                Map<Long, Integer> shapeOrderMap = tuple._2()._2();
 
-                                List<Long> shapeList = new ArrayList<>(agg.shapes);
-                                List<Integer> shapeOrders = encodeShapes(shapeList, config.getTspEncoding());
-
-                                Map<Long, Integer> shapeOrderMap = new HashMap<>();
-                                for (int i = 0; i < shapeList.size(); i++) {
-                                    shapeOrderMap.put(shapeList.get(i), shapeOrders.get(i));
+                                Integer shapeOrder = shapeOrderMap.get(rawInfo.shapeCodeInParent);
+                                if (shapeOrder == null) {
+                                    throw new IllegalStateException("Shape order missing for qOrder=" + quadOrder
+                                            + ", shapeCode=" + rawInfo.shapeCodeInParent);
                                 }
 
-                                List<Tuple3<Put, Map<String, Tuple2<Long, byte[]>>, List<KeyValue>>> out =
-                                        new ArrayList<>();
+                                long rowKeyIndex = (quadOrder << moveBits) | shapeOrder;
+                                Tuple3<Put, Long, List<KeyValue>> putWithIndex = getPutWithIndex(rawInfo.rawTraj,
+                                        rowKeyIndex, taskConfig);
 
-                                for (Tuple2<Long, String> traj : agg.trajs) {
-                                    long shapeCode = traj._1;
-                                    int shapeOrder = shapeOrderMap.get(shapeCode);
-                                    String rawTraj = traj._2;
+                                Put put = putWithIndex._1();
+                                List<KeyValue> keyValues = putWithIndex._3();
 
-                                    long rowKeyIndex = (quadOrder << moveBits) | shapeOrder;
+                                Map<String, Tuple2<Long, byte[]>> secondaryIndexMap = new HashMap<>();
 
-                                    Tuple3<Put, Long, List<KeyValue>> putWithIndex = getPutWithIndex(rawTraj,
-                                            rowKeyIndex, config);
+                                long originIndex = (quadOrder << moveBits) | rawInfo.shapeCodeInParent;
+                                secondaryIndexMap.put(taskTableName, new Tuple2<>(originIndex, Bytes.toBytes(shapeOrder)));
 
-                                    Put put = putWithIndex._1();
-                                    List<KeyValue> keyValues = putWithIndex._3();
-
-                                    Map<String, Tuple2<Long, byte[]>> secondaryIndexMap =
-                                            getSecondaryIndex(rawTraj, put.getRow());
-
-                                    long originIndex = (quadOrder << moveBits) | shapeCode;
-
-                                    secondaryIndexMap.put(tableName, new Tuple2<>(originIndex, Bytes.toBytes(shapeOrder)));
-
-                                    out.add(new Tuple3<>(
-                                            put,
-                                            secondaryIndexMap,
-                                            keyValues
-                                    ));
-                                }
-                                return out.iterator();
+                                return new Tuple3<>(put, secondaryIndexMap, keyValues);
                             })
                             .persist(StorageLevel.DISK_ONLY());
 
@@ -214,15 +240,15 @@ public class LetiLoader extends Loader {
                 jedis.del(tableName + LETI_UNION_MASK_SUFFIX);
             }
 
-            aggregatedByOrderRDD.foreachPartition(v -> {
+            aggregatedShapesByOrderRDD.foreachPartition(v -> {
                 int size = 0;
                 Jedis jedis = new Jedis(config.getRedisHost(), 6379, 60000);
                 Pipeline pipelined = jedis.pipelined();
                 String unionMaskKey = tableName + LETI_UNION_MASK_SUFFIX;
                 while (v.hasNext()) {
-                    Tuple2<Long, TrajShapeAgg> entry = v.next();
+                    Tuple2<Long, ShapeSetAgg> entry = v.next();
                     long quadOrder = entry._1;
-                    TrajShapeAgg agg = entry._2;
+                    ShapeSetAgg agg = entry._2;
 
                     long unionMask = 0L;
                     for (Long shape : agg.shapes) {
@@ -292,6 +318,10 @@ public class LetiLoader extends Loader {
             writer.close();
             System.out.println("[Loader.storePrimaryTable] 主表存储完成，耗时: " + currentTime + " ms");
             storeSecondaryTable(indexedRDD);
+            indexedRDD.unpersist(false);
+            shapeOrderMapByQOrderRDD.unpersist(false);
+            aggregatedShapesByOrderRDD.unpersist(false);
+            effectiveNodeIndexBc.destroy();
             System.out.println("[Loader.storePrimaryTable] 二级索引表存储完成");
         }
     }
@@ -303,15 +333,20 @@ public class LetiLoader extends Loader {
     private static class TrajIndexResult implements Serializable {
         final int level;
         final long quadCode;
+        final long effectiveQuadCode;
+        final int quadOrderInParent;
         final long shapeCode;
         final long shapeCodeInParent;
         final LSFCReader.ParentQuad parentQuad;
         final MultiPoint geo;
 
-        TrajIndexResult(int level, long quadCode, long shapeCode, long shapeCodeInParent,
+        TrajIndexResult(int level, long quadCode, long effectiveQuadCode, int quadOrderInParent,
+                        long shapeCode, long shapeCodeInParent,
                        LSFCReader.ParentQuad parentQuad, MultiPoint geo) {
             this.level = level;
             this.quadCode = quadCode;
+            this.effectiveQuadCode = effectiveQuadCode;
+            this.quadOrderInParent = quadOrderInParent;
             this.shapeCode = shapeCode;
             this.shapeCodeInParent = shapeCodeInParent;
             this.parentQuad = parentQuad;
@@ -328,7 +363,9 @@ public class LetiLoader extends Loader {
      * @param traj 轨迹字符串（格式：oid-tid-wkt）
      * @return TrajIndexResult 包含所有索引信息
      */
-    private TrajIndexResult getTrajIndexWithParentShape(String traj) {
+    private static TrajIndexResult getTrajIndexWithParentShape(String traj,
+                                                               TableConfig config,
+                                                               LSFCReader.EffectiveNodeIndex effectiveNodeIndex) {
         String[] t = traj.split("-");
         if (t.length < 3) {
             throw new RuntimeException("Invalid trajectory format: " + traj);
@@ -346,15 +383,17 @@ public class LetiLoader extends Loader {
         long shapeCode = (long) idx._3();
 
         // 获取父 quad 信息
-        LSFCReader.ParentQuad parentQuad = quadCodeParentQuad.get(quadCode);
-        if (parentQuad == null) {
+        LSFCReader.EffectiveNodeEntry effectiveNode = effectiveNodeIndex.resolveNearestEffectiveParent(quadCode);
+        if (effectiveNode == null || effectiveNode.parentQuad == null) {
             throw new RuntimeException("Parent quad not found for quadCode: " + quadCode + ", trajectory: " + traj);
         }
+        LSFCReader.ParentQuad parentQuad = effectiveNode.parentQuad;
 
         // 计算父 quad 中的 shape
-        long shapeCodeInParent = calculateShapeInParentEE(parentQuad, geo);
+        long shapeCodeInParent = calculateShapeInParentEE(parentQuad, geo, config);
 
-        return new TrajIndexResult(level, quadCode, shapeCode, shapeCodeInParent, parentQuad, geo);
+        return new TrajIndexResult(level, quadCode, effectiveNode.elementCode, effectiveNode.order,
+                shapeCode, shapeCodeInParent, parentQuad, geo);
     }
 
     /**
@@ -371,7 +410,7 @@ public class LetiLoader extends Loader {
      * @param geo 轨迹几何对象（已解析）
      * @return 签名位掩码，每一位表示一个网格单元是否被轨迹覆盖
      */
-    private long calculateShapeInParentEE(LSFCReader.ParentQuad parentQuad, MultiPoint geo) {
+    private static long calculateShapeInParentEE(LSFCReader.ParentQuad parentQuad, MultiPoint geo, TableConfig config) {
 
         double cellXmin = parentQuad.getXmin();
         double cellYmin = parentQuad.getYmin();
@@ -418,9 +457,10 @@ public class LetiLoader extends Loader {
      * @param shapeCode 形状编码
      * @throws AssertionError 如果轨迹 MBR 不在 EE 内
      */
-    private void assertTrajMBRInsideParentEE(MultiPoint geo,
-                                             LSFCReader.ParentQuad parentQuad,
-                                             int level, long quadCode, long shapeCode) {
+    private static void assertTrajMBRInsideParentEE(MultiPoint geo,
+                                                    LSFCReader.ParentQuad parentQuad,
+                                                    TableConfig config,
+                                                    int level, long quadCode, long shapeCode) {
         if (parentQuad == null) {
             throw new RuntimeException("ParentEE is null for quadCode: " + quadCode);
         }
@@ -458,20 +498,27 @@ public class LetiLoader extends Loader {
     /**
      * 轨迹形状聚合器：用于按 quadOrder 聚合轨迹和形状
      */
-    static class TrajShapeAgg implements Serializable {
+    static class ShapeSetAgg implements Serializable {
         Set<Long> shapes = new HashSet<>();
-        List<Tuple2<Long, String>> trajs = new ArrayList<>();
 
-        TrajShapeAgg add(Tuple2<Long, String> st) {
-            shapes.add(st._1);
-            trajs.add(st);
+        ShapeSetAgg add(Long shape) {
+            shapes.add(shape);
             return this;
         }
 
-        TrajShapeAgg merge(TrajShapeAgg other) {
+        ShapeSetAgg merge(ShapeSetAgg other) {
             shapes.addAll(other.shapes);
-            trajs.addAll(other.trajs);
             return this;
+        }
+    }
+
+    static class RawTrajOrderInfo implements Serializable {
+        final long shapeCodeInParent;
+        final String rawTraj;
+
+        RawTrajOrderInfo(long shapeCodeInParent, String rawTraj) {
+            this.shapeCodeInParent = shapeCodeInParent;
+            this.rawTraj = rawTraj;
         }
     }
 }

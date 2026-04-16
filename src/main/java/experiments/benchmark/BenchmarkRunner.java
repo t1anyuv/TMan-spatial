@@ -228,7 +228,7 @@ public class BenchmarkRunner {
         return "Method,Dataset,Distribution,QueryRange_Meters,"
                 + "Latency_Avg,LogicalIndexRanges_Avg,QuadCodeRanges_Avg,QOrderRanges_Avg,"
                 + "RowKeyRanges_Avg,Candidates_Avg,FinalResultCount_Avg,VisitedCells_Avg,"
-                + "RedisAccessCount_Avg,RedisShapeFilterRate_Avg,IndexSize_KB";
+                + "RedisAccessCount_Avg,RedisShapeFilterRateScaled_Avg,IndexSize_KB";
     }
 
     private String toRangeSummaryRow(ExperimentStats stats) {
