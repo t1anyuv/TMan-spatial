@@ -51,9 +51,9 @@ public class QueryUtils implements Cloneable {
             adaptivePartition = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ADAPTIVE_PARTITION)));
         } catch (Exception ignored) {
         }
-        int maxShapeBits = 0;
+        int mainTableMoveBits = 0;
         try {
-            maxShapeBits = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_MAX_SHAPE_BITS)));
+            mainTableMoveBits = Bytes.toInt(result.getValue(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_MAIN_TABLE_MOVE_BITS)));
         } catch (Exception ignored) {
         }
         String letiOrderName = readString(result, META_TABLE_LETI_ORDER_NAME);
@@ -145,7 +145,7 @@ public class QueryUtils implements Cloneable {
         tableConfig.setTspEncoding(tspEncoding);
         tableConfig.setOrderDefinitionPath(orderDefinitionPath);
         tableConfig.setAdaptivePartition(adaptivePartition);
-        tableConfig.setMaxShapeBits(maxShapeBits);
+        tableConfig.setMainTableMoveBits(mainTableMoveBits);
         tableConfig.setLetiOrderName(letiOrderName);
         tableConfig.setLetiOrderDataset(letiOrderDataset);
         tableConfig.setLetiOrderDistribution(letiOrderDistribution);

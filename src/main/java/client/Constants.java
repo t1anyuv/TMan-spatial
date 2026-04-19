@@ -42,7 +42,7 @@ public class Constants {
     public static String META_TABLE_ORDER_ENCODING_TYPE = "order_encoding_type";
     public static String META_TABLE_ORDER_DEFINITION_PATH = "order_definition_path";
     public static String META_TABLE_ADAPTIVE_PARTITION = "adaptive_partition";
-    public static String META_TABLE_MAX_SHAPE_BITS = "max_shape_bits";
+    public static String META_TABLE_MAIN_TABLE_MOVE_BITS = "main_table_move_bits";
     public static String META_REDIS = "redis";
     public static String META_TABLE_TIME_BIN_NUMS = "time_bin_nums";
     public static String META_TABLE_TIME_PERIOD = "time_period";

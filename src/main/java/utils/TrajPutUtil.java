@@ -328,11 +328,18 @@ public class TrajPutUtil implements Serializable {
      * @return 索引值 = shape | (location << moveBits)
      */
     private static long getSpatialIndexValue(MultiPoint geo, TableConfig config) {
-        LocSIndex locSIndex = createLocSIndex(config);
-        Tuple3<Object, Object, Object> sIndex = locSIndex.index(geo, false);
+        XZSFC sfc;
+        if (config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI) {
+            sfc = createLETILocSIndex(config);
+        } else {
+            sfc = createLocSIndex(config);
+        }
+        Tuple3<Object, Object, Object> sIndex = sfc.index(geo, false);
         long location = (long) sIndex._2();
         long shape = (long) sIndex._3();
-        int moveBits = config.getAlpha() * config.getBeta();
+        int moveBits = config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI && config.getMainTableMoveBits() > 0
+                ? config.getMainTableMoveBits()
+                : config.getAlpha() * config.getBeta();
         return shape | (location << moveBits);
     }
 
@@ -405,14 +412,24 @@ public class TrajPutUtil implements Serializable {
      * 创建 LETILocSIndex 实例
      */
     private static LETILocSIndex createLETILocSIndex(TableConfig config) {
+        boolean adaptivePartition = config.isAdaptivePartition();
+        String orderDefinitionPath = config.getOrderDefinitionPath();
         if (config.getEnvelope() != null) {
             return LETILocSIndex.apply(
                     (short) config.getResolution(),
                     new Tuple2<>(config.getEnvelope().getXMin(), config.getEnvelope().getXMax()),
                     new Tuple2<>(config.getEnvelope().getYMin(), config.getEnvelope().getYMax()),
-                    config.getAlpha(), config.getBeta());
+                    config.getAlpha(),
+                    config.getBeta(),
+                    adaptivePartition,
+                    orderDefinitionPath);
         } else {
-            return LETILocSIndex.apply((short) config.getResolution(), config.getAlpha(), config.getBeta());
+            return LETILocSIndex.apply(
+                    (short) config.getResolution(),
+                    config.getAlpha(),
+                    config.getBeta(),
+                    adaptivePartition,
+                    orderDefinitionPath);
         }
     }
 

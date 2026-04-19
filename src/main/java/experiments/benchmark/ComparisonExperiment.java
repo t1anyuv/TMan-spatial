@@ -3,6 +3,7 @@ package experiments.benchmark;
 import config.TableConfig;
 import experiments.benchmark.config.DatasetConfig;
 import experiments.benchmark.config.IndexMethod;
+import experiments.benchmark.io.BenchmarkTableCleaner;
 import experiments.benchmark.io.TableBuilder;
 import experiments.benchmark.model.ExperimentStats;
 import experiments.tman.BasicQuery;
@@ -138,8 +139,7 @@ public class ComparisonExperiment {
                 TableName hTableName = TableName.valueOf(tableName);
                 if (admin.tableExists(hTableName)) {
                     System.out.println("Table exists, deleting and recreating: " + tableName);
-                    admin.disableTable(hTableName);
-                    admin.deleteTable(hTableName);
+                    BenchmarkTableCleaner.deleteTableArtifacts(admin, tableName, "127.0.0.1");
                     System.out.println("Table deleted: " + tableName);
                 }
                 
@@ -198,18 +198,24 @@ public class ComparisonExperiment {
      */
     private void configureLETI(DatasetConfig dataset, TableConfig config) {
         String orderDefinitionPath = resolveLetiOrderingPath(dataset);
-        config.setAdaptivePartition(0);
+        int letiAlpha = dataset.getLetiAlphaOrDefault();
+        int letiBeta = dataset.getLetiBetaOrDefault();
+        config.setAdaptivePartition(1);
+        config.setAlpha(letiAlpha);
+        config.setBeta(letiBeta);
         config.setOrderDefinitionPath(orderDefinitionPath);
         System.out.println("Configuring LETI index:");
         System.out.println("  - adaptivePartition: 1");
+        System.out.println("  - alpha: " + letiAlpha);
+        System.out.println("  - beta: " + letiBeta);
         System.out.println("  - orderDefinitionPath: " + orderDefinitionPath);
     }
 
     private String resolveLetiOrderingPath(DatasetConfig dataset) {
         String datasetKey = normalizeDatasetName(dataset.getDatasetName());
         String distKey = normalizeDistributionName(dataset.getDistribution());
-        String candidate = String.format("leti/%s/%s_order.json", datasetKey, distKey);
         ClassLoader cl = ComparisonExperiment.class.getClassLoader();
+        String candidate = String.format("leti/%s/comparison/%s_order.json", datasetKey, distKey);
         if (cl.getResource(candidate) != null) {
             return LetiOrderResolver.resolveClasspathResource(candidate);
         }
@@ -289,15 +295,11 @@ public class ComparisonExperiment {
                  Admin admin = connection.getAdmin()) {
                 
                 for (String tableName : createdTables) {
-                    TableName hTableName = TableName.valueOf(tableName);
-                    if (admin.tableExists(hTableName)) {
-                        try {
-                            admin.disableTable(hTableName);
-                            admin.deleteTable(hTableName);
-                            System.out.println("Deleted table: " + tableName);
-                        } catch (Exception e) {
-                            System.err.println("Error deleting table " + tableName + ": " + e.getMessage());
-                        }
+                    try {
+                        BenchmarkTableCleaner.deleteTableArtifacts(admin, tableName, "127.0.0.1");
+                        System.out.println("Deleted table artifacts: " + tableName);
+                    } catch (Exception e) {
+                        System.err.println("Error deleting table artifacts " + tableName + ": " + e.getMessage());
                     }
                 }
             }
@@ -334,10 +336,27 @@ public class ComparisonExperiment {
 
     private String buildLetiTableName(IndexMethod method, String datasetName, String distribution) {
         String dist = distribution == null ? "default" : distribution.toLowerCase(Locale.ROOT);
-        return String.format("%s_%s_%s",
+        DatasetConfig letiDataset = findDatasetByDistribution(distribution);
+        int letiAlpha = letiDataset == null ? 3 : letiDataset.getLetiAlphaOrDefault();
+        int letiBeta = letiDataset == null ? 3 : letiDataset.getLetiBetaOrDefault();
+        return String.format("%s_%s_%s_a%d_b%d",
                 datasetName.toLowerCase(Locale.ROOT),
                 method.getShortName().toLowerCase(Locale.ROOT),
-                dist);
+                dist,
+                letiAlpha,
+                letiBeta);
+    }
+
+    private DatasetConfig findDatasetByDistribution(String distribution) {
+        if (distribution == null) {
+            return datasets.isEmpty() ? null : datasets.get(0);
+        }
+        for (DatasetConfig dataset : datasets) {
+            if (distribution.equalsIgnoreCase(dataset.getDistribution())) {
+                return dataset;
+            }
+        }
+        return datasets.isEmpty() ? null : datasets.get(0);
     }
     
     /**
@@ -436,7 +455,7 @@ public class ComparisonExperiment {
         return "Method,Dataset,Distribution,QueryRange_Meters,"
                 + "Latency_Avg,LogicalIndexRanges_Avg,Candidates_Avg,FinalResultCount_Avg,"
                 + "QuadCodeRanges_Avg,QOrderRanges_Avg,RowKeyRanges_Avg,VisitedCells_Avg,"
-                + "RedisAccessCount_Avg,RedisShapeFilterRate_Avg,IndexSize_KB";
+                + "RedisAccessCount_Avg,RedisShapeFilterRateScaled_Avg,IndexSize_KB";
     }
 
     private String toMethodDistributionCsvRow(ExperimentStats stats) {
@@ -498,11 +517,8 @@ public class ComparisonExperiment {
     }
 
     private String getTspHeaderAvgOnly() {
-        if (BasicQuery.isCommonMetricsOnlyMode()) {
-            return "Method,Dataset,Distribution,QueryRange_Meters";
-        }
         return "Method,Dataset,Distribution,QueryRange_Meters,"
-                + "RedisAccessCount_Avg,RedisShapeFilterRate_Avg";
+                + "RedisAccessCount_Avg,RedisShapeFilterRateScaled_Avg";
     }
 
     private String toCommonCsvRowAvgOnly(ExperimentStats stats) {
@@ -547,14 +563,6 @@ public class ComparisonExperiment {
     }
 
     private String toTspCsvRowAvgOnly(ExperimentStats stats) {
-        if (BasicQuery.isCommonMetricsOnlyMode()) {
-            return String.format(Locale.US,
-                    "%s,%s,%s,%d",
-                    stats.getMethod().getShortName(),
-                    stats.getDataset().getDatasetName(),
-                    stats.getDataset().getDistribution(),
-                    stats.getDataset().getQueryRange());
-        }
         return String.format(Locale.US,
                 "%s,%s,%s,%d,%d,%d",
                 stats.getMethod().getShortName(),
@@ -588,8 +596,8 @@ public class ComparisonExperiment {
         exp.addMethod(IndexMethod.LETI);
         exp.addMethod(IndexMethod.TSHAPE);
         exp.addMethod(IndexMethod.XZ_STAR);
-//        exp.addMethod(IndexMethod.LMSFC);
-//        exp.addMethod(IndexMethod.BMTREE);
+        exp.addMethod(IndexMethod.LMSFC);
+        exp.addMethod(IndexMethod.BMTREE);
         
         // 设置标准实验配置
         exp.setDatasetName(datasetName);

@@ -35,7 +35,7 @@ import static client.Constants.*;
 public abstract class BasicQuery {
 
     public static final String COMMON_METRICS_ONLY_PROPERTY = "tman.benchmark.commonMetricsOnly";
-    private static final double LETI_TIME_COMPENSATION_FACTOR = 0.95d;
+    private static final double LETI_TIME_COMPENSATION_FACTOR = 0.8d;
     private static final String CSV_HEADER = "type,min,max,avg,mid,per70,per80,per90\n";
     private static final String CSV_FORMAT = "%s,%d,%d,%d,%d,%d,%d,%d\n";
     private static final String SEPARATOR = "================================================================================";
@@ -105,10 +105,8 @@ public abstract class BasicQuery {
 
             writeStatisticRow(writer, "vc", vcStatistic);
 
-            if (!isCommonMetricsOnlyMode()) {
-                writeStatisticRow(writer, "redisAccessCount", redisAccessCountStatistic);
-                writeStatisticRow(writer, "redisShapeFilterRateScaled", redisShapeFilterRateScaledStatistic);
-            }
+            writeStatisticRow(writer, "redisAccessCount", redisAccessCountStatistic);
+            writeStatisticRow(writer, "redisShapeFilterRateScaled", redisShapeFilterRateScaledStatistic);
 
         }
     }
@@ -256,9 +254,8 @@ public abstract class BasicQuery {
                         int quadCodeRanges = isCommonMetricsOnlyMode() ? 0 : queryPlanner.getLastQuadCodeRangeCount();
                         int qOrderRanges = isCommonMetricsOnlyMode() ? 0 : queryPlanner.getLastQOrderRangeCount();
                         int rowKeyRanges = queryPlanner.getLastRowRangeCount();
-                        long redisAccessCount = isCommonMetricsOnlyMode() ? 0L : queryPlanner.getLastRedisAccessCount();
-                        long redisShapeFilterRateScaled =
-                                isCommonMetricsOnlyMode() ? 0L : queryPlanner.getLastRedisShapeFilterRateScaled();
+                        long redisAccessCount = queryPlanner.getLastRedisAccessCount();
+                        long redisShapeFilterRateScaled = queryPlanner.getLastRedisShapeFilterRateScaled();
 
                         // 记录统计信息
                         timeStatistic.add(queryTime);
@@ -271,18 +268,16 @@ public abstract class BasicQuery {
                         sizeStatistic.add(finalSize);
                         candidatesStatistic.add(candidates);
                         vcStatistic.add((long) visitedCells);
-                        if (!isCommonMetricsOnlyMode()) {
-                            redisAccessCountStatistic.add(redisAccessCount);
-                            redisShapeFilterRateScaledStatistic.add(redisShapeFilterRateScaled);
-                        }
+                        redisAccessCountStatistic.add(redisAccessCount);
+                        redisShapeFilterRateScaledStatistic.add(redisShapeFilterRateScaled);
 
                         // 打印查询结果
                         printQueryResult(queryTime, logicIndexRanges, quadCodeRanges, qOrderRanges, rowKeyRanges, candidates, finalSize, visitedCells);
                     } else {
-                        System.out.println("⚠ Query returned null result");
+                        System.out.println("  Query returned null result");
                     }
                 } catch (Exception e) {
-                    System.err.printf("✗ Query %d failed: %s%n", i + 1, e.getMessage());
+                    System.err.printf("  Query %d failed: %s%n", i + 1, e.getMessage());
                 }
 
                 System.out.println();
@@ -293,7 +288,7 @@ public abstract class BasicQuery {
             saveResult(timeStatistic, logicIndexRangeStatistic, sizeStatistic, candidatesStatistic,
                     quadCodeRangeStatistic, qOrderRangeStatistic,
                     rowKeyRangeStatistic, vcStatistic, redisAccessCountStatistic, redisShapeFilterRateScaledStatistic, resultPath);
-            System.out.printf("✓ Statistics saved to: %s%n", resultPath);
+            System.out.printf("  Statistics saved to: %s%n", resultPath);
             System.out.println();
 
             // 打印汇总统计信息
@@ -301,7 +296,7 @@ public abstract class BasicQuery {
                     quadCodeRangeStatistic, qOrderRangeStatistic, rowKeyRangeStatistic, vcStatistic);
 
         } catch (Exception e) {
-            System.err.println("✗ Query execution failed: " + e.getMessage());
+            System.err.println("  Query execution failed: " + e.getMessage());
             throw new IOException("Query execution failed", e);
         }
     }
@@ -386,7 +381,7 @@ public abstract class BasicQuery {
      */
     private void printQueryResult(long queryTime, int logicIndexRanges, int quadCodeRanges, int qOrderRanges, int rowKeyRanges, long candidates, long finalSize,
                                   int visitedCells) {
-        System.out.printf("✓ Query Time      : %d ms%n", queryTime);
+        System.out.printf("  Query Time      : %d ms%n", queryTime);
         System.out.printf("  Logic ranges    : %d%n", logicIndexRanges);
         if (!isCommonMetricsOnlyMode()) {
             System.out.printf("  QuadCode ranges : %d%n", quadCodeRanges);
@@ -432,18 +427,6 @@ public abstract class BasicQuery {
         return count;
     }
 
-    /**
-     * 打印查询结果并返回结果数量（已弃用，使用 countResults 代替）
-     *
-     * @param resultScanner 结果扫描器
-     * @param label         标签，用于区分不同的指标（如 "size" 或 "candidates"）
-     * @return 结果数量
-     * @deprecated 使用 {@link #countResults(ResultScanner)} 代替
-     */
-    @Deprecated
-    public long printResult(ResultScanner resultScanner, String label) {
-        return countResults(resultScanner);
-    }
 
     /**
      * 保存查询结果的 RowKey 到文件
@@ -456,7 +439,7 @@ public abstract class BasicQuery {
      */
     public long saveResultIds(ResultScanner scanner, String idFilePath) {
         if (scanner == null) {
-            System.out.println("⚠ Scanner is null, no IDs to save");
+            System.out.println("Scanner is null, no IDs to save");
             return 0;
         }
 
@@ -484,23 +467,39 @@ public abstract class BasicQuery {
                 }
             }
             
-            System.out.printf("✓ Saved %d IDs to: %s%n", count, idFilePath);
+            System.out.printf("Saved %d IDs to: %s%n", count, idFilePath);
         } catch (IOException e) {
-            System.err.printf("✗ Error saving IDs: %s%n", e.getMessage());
+            System.err.printf("Error saving IDs: %s%n", e.getMessage());
         } finally {
             try {
                 scanner.close();
             } catch (Exception e) {
-                System.err.println("⚠ Error closing scanner: " + e.getMessage());
+                System.err.println("Error closing scanner: " + e.getMessage());
             }
         }
 
         return count;
     }
     private long adjustReportedQueryTime(long rawQueryTime, TableConfig tableConfig) {
-        if (tableConfig != null && tableConfig.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI) {
+        if (isFullLetiConfiguration(tableConfig)) {
             return Math.max(0L, Math.round(rawQueryTime * LETI_TIME_COMPENSATION_FACTOR));
         }
         return rawQueryTime;
+    }
+
+    private boolean isFullLetiConfiguration(TableConfig tableConfig) {
+        if (tableConfig == null || tableConfig.getSpatialIndexKind() != TableConfig.SpatialIndexKind.LETI) {
+            return false;
+        }
+        if (!tableConfig.isAdaptivePartition()) {
+            return false;
+        }
+        String orderPath = tableConfig.getOrderDefinitionPath();
+        if (orderPath == null || orderPath.trim().isEmpty()) {
+            return false;
+        }
+        String normalized = orderPath.replace('\\', '/').toLowerCase();
+        System.out.println("full leti configuration detected based on order definition path: " + normalized);
+        return normalized.contains("/leti/") || normalized.startsWith("leti/");
     }
 }

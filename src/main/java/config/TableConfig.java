@@ -59,7 +59,7 @@ public class TableConfig implements Serializable {
      * 等于所有 ParentQuad 中 alpha * beta 的最大值
      * 用于统一编码空间，避免不同 quad 的索引范围重叠
      */
-    private int maxShapeBits = 0;
+    private int mainTableMoveBits = 0;
 
     private int isLMSFC = 0;
     private String thetaConfig = "";

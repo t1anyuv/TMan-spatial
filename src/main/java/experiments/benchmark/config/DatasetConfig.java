@@ -19,19 +19,22 @@ public class DatasetConfig {
     public static final String GAUSSIAN = "gaussian";
     public static final String RANGE = "range";
     public static final List<Integer> QUERY_RANGES = Arrays.asList(100, 500, 1000, 1500, 2000);
-//    public static final List<String> DISTRIBUTIONS = Arrays.asList(SKEWED, GAUSSIAN, UNIFORM);
-    public static final List<String> DISTRIBUTIONS = Arrays.asList(SKEWED, UNIFORM);
+//    public static final List<Integer> QUERY_RANGES = Arrays.asList(1000, 1500, 2000);
+//    public static final List<String> DISTRIBUTIONS = Arrays.asList(GAUSSIAN);
+    public static final List<String> DISTRIBUTIONS = Arrays.asList(SKEWED, GAUSSIAN, UNIFORM);
     public static final List<Integer> NODES = Arrays.asList(2, 4, 6, 8);
 
     private String datasetName = T_DRIVE;
     private String distribution = SKEWED;
-    private int queryRange = 500;
+    private int queryRange = 1000;
     private String queryType = "SRQ";
     private int nodes = 4;
     private int resolution = 8;
     private int alpha = 2;
     private int beta = 2;
-    private int minTraj = 4;
+    private Integer letiAlpha = 3;
+    private Integer letiBeta = 3;
+    private int minTraj = 2;
     private int shards = 4;
 
     @Getter @Setter
@@ -112,5 +115,17 @@ public class DatasetConfig {
             return "20,20";
         }
         return bmtreeBitLength;
+    }
+
+    public int getLetiAlphaOrDefault() {
+        return letiAlpha == null || letiAlpha <= 0 ? alpha : letiAlpha;
+    }
+
+    public int getLetiBetaOrDefault() {
+        return letiBeta == null || letiBeta <= 0 ? beta : letiBeta;
+    }
+
+    public boolean hasLetiCustomPartition() {
+        return (letiAlpha != null && letiAlpha > 0) || (letiBeta != null && letiBeta > 0);
     }
 }

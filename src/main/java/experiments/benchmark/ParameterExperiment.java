@@ -3,6 +3,7 @@ package experiments.benchmark;
 import config.TableConfig;
 import experiments.benchmark.config.DatasetConfig;
 import experiments.benchmark.config.IndexMethod;
+import experiments.benchmark.io.BenchmarkTableCleaner;
 import experiments.benchmark.io.TableBuilder;
 import experiments.benchmark.model.ExperimentStats;
 import org.apache.hadoop.conf.Configuration;
@@ -17,6 +18,7 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,11 +32,9 @@ import java.util.Set;
 public class ParameterExperiment {
 
     private static final List<Integer> RESOLUTION_VALUES = Arrays.asList(6, 7, 8, 9, 10);
-    private static final List<Integer> MIN_TRAJ_VALUES = Arrays.asList(1, 2, 3, 4, 5);
-    private static final List<Integer> ALPHA_BETA_VALUES = Arrays.asList(2, 3, 4, 5);
-    private static final List<String> RESOLUTION_MIN_TRAJ_METRICS = Arrays.asList(
+    private static final List<Integer> MIN_TRAJ_VALUES = Arrays.asList(4, 6, 8, 10);
+    private static final List<String> METRICS = Arrays.asList(
             "Latency_ms", "LogicalIndexRanges", "VisitedCells", "RowKeyRanges");
-    private static final List<String> ALPHA_BETA_METRICS = Arrays.asList("IndexSize_KB");
 
     private final String outputDir;
     private final String queryBaseDir;
@@ -56,12 +56,10 @@ public class ParameterExperiment {
         List<ResultRow> rows = new ArrayList<>();
         try {
             Files.createDirectories(Paths.get(outputDir));
-            runResolutionSweep(rows);
-            runMinTrajSweep(rows);
-            runAlphaBetaSweep(rows);
+            initializeSummaryCsv();
+            runByResolution(rows);
             writeFlatResults(rows);
             writeResolutionMinTrajTables(rows);
-            writeIndexSizeTable(rows);
         } catch (IOException e) {
             throw new RuntimeException("Failed to run parameter experiment", e);
         } finally {
@@ -69,97 +67,38 @@ public class ParameterExperiment {
         }
     }
 
-    private void runResolutionSweep(List<ResultRow> rows) {
-        DatasetConfig base = defaultConfig();
+    private void runByResolution(List<ResultRow> rows) throws IOException {
         for (int resolution : RESOLUTION_VALUES) {
-            DatasetConfig config = copyConfig(base);
-            config.setResolution(resolution);
-            for (MethodVariant variant : standardVariants()) {
-                appendMetricRows(rows, runOne(variant, config, "resolution", String.valueOf(resolution)),
-                        "resolution", config.getDatasetName(), variant.label, String.valueOf(resolution),
-                        RESOLUTION_MIN_TRAJ_METRICS);
+            System.out.println("[ParameterExperiment] Starting resolution " + resolution + " with minTraj values " + MIN_TRAJ_VALUES);
+            List<ResultRow> resolutionRows = new ArrayList<>();
+            try {
+                for (int minTraj : MIN_TRAJ_VALUES) {
+                    DatasetConfig config = defaultConfig();
+                    config.setResolution(resolution);
+                    config.setMinTraj(minTraj);
+                    ExperimentStats stats = runOne(config, "resolution_minTraj", resolution + "_" + minTraj);
+                    addRows(resolutionRows, "resolution_minTraj", config.getDatasetName(), "LETI",
+                            buildSweepValue(resolution, minTraj), stats);
+                }
+            } catch (Throwable t) {
+                addFailureRows(resolutionRows, resolution, t);
+                System.err.println("[ParameterExperiment] Resolution " + resolution + " failed: " + t.getMessage());
             }
+            rows.addAll(resolutionRows);
+            writeResolutionFile(resolution, resolutionRows);
+            appendSummaryRows(resolutionRows);
+            printResolutionResults(resolution, resolutionRows);
         }
     }
 
-    private void runMinTrajSweep(List<ResultRow> rows) {
-        DatasetConfig base = defaultConfig();
-        for (int minTraj : MIN_TRAJ_VALUES) {
-            DatasetConfig config = copyConfig(base);
-            config.setMinTraj(minTraj);
-            for (MethodVariant variant : standardVariants()) {
-                appendMetricRows(rows, runOne(variant, config, "minTraj", String.valueOf(minTraj)),
-                        "minTraj", config.getDatasetName(), variant.label, String.valueOf(minTraj),
-                        RESOLUTION_MIN_TRAJ_METRICS);
-            }
-        }
+    private ExperimentStats runOne(DatasetConfig dataset, String study, String sweepValue) {
+        String orderPath = resolveOrderingSelection(dataset, study);
+        String tableName = buildTableName(dataset, study, sweepValue);
+        ensureTableExists(dataset, tableName, orderPath);
+        return runner.runBenchmark(IndexMethod.LETI, dataset, tableName);
     }
 
-    private void runAlphaBetaSweep(List<ResultRow> rows) {
-        DatasetConfig base = defaultConfig();
-        for (int alphaBeta : ALPHA_BETA_VALUES) {
-            DatasetConfig config = copyConfig(base);
-            config.setAlpha(alphaBeta);
-            config.setBeta(alphaBeta);
-            for (MethodVariant variant : alphaBetaVariants()) {
-                appendMetricRows(rows, runOne(variant, config, "alpha_beta", alphaBeta + "*" + alphaBeta),
-                        "alpha_beta", config.getDatasetName(), variant.label, alphaBeta + "*" + alphaBeta,
-                        ALPHA_BETA_METRICS);
-            }
-        }
-    }
-
-    private void appendMetricRows(List<ResultRow> rows, RunOutcome outcome, String study, String dataset,
-                                  String method, String sweepValue, List<String> metrics) {
-        if (outcome.isPending()) {
-            addPendingRows(rows, study, dataset, method, sweepValue, metrics, outcome.pendingReason);
-            return;
-        }
-        addRows(rows, study, dataset, method, sweepValue, outcome.stats, metrics);
-    }
-
-    private void addRows(List<ResultRow> rows, String study, String dataset, String method, String sweepValue,
-                         ExperimentStats stats, List<String> metrics) {
-        for (String metric : metrics) {
-            rows.add(ResultRow.value(study, dataset, metric, method, sweepValue, formatMetric(metric, stats)));
-        }
-    }
-
-    private void addPendingRows(List<ResultRow> rows, String study, String dataset, String method, String sweepValue,
-                                List<String> metrics, String reason) {
-        for (String metric : metrics) {
-            rows.add(ResultRow.pending(study, dataset, metric, method, sweepValue, reason));
-        }
-    }
-
-    private String formatMetric(String metric, ExperimentStats stats) {
-        switch (metric) {
-            case "Latency_ms":
-                return String.valueOf(stats.getLatencyStats().getAvg());
-            case "LogicalIndexRanges":
-                return String.valueOf(stats.getLogicIndexRangeStats().getAvg());
-            case "VisitedCells":
-                return String.valueOf(stats.getVisitedCellsStats().getAvg());
-            case "RowKeyRanges":
-                return String.valueOf(stats.getRowKeyRangeStats().getAvg());
-            case "IndexSize_KB":
-                return String.valueOf(stats.getIndexSizeKb());
-            default:
-                return "";
-        }
-    }
-
-    private RunOutcome runOne(MethodVariant variant, DatasetConfig dataset, String study, String sweepValue) {
-        String pendingReason = variant.resolvePendingReason(dataset, study);
-        if (pendingReason != null) {
-            return RunOutcome.pending(pendingReason);
-        }
-        String tableName = buildTableName(variant, dataset, study, sweepValue);
-        ensureTableExists(variant, dataset, tableName, study);
-        return RunOutcome.value(runner.runBenchmark(variant.baseMethod, dataset, tableName));
-    }
-
-    private void ensureTableExists(MethodVariant variant, DatasetConfig dataset, String tableName, String study) {
+    private void ensureTableExists(DatasetConfig dataset, String tableName, String orderPath) {
         if (ensuredTables.contains(tableName)) {
             return;
         }
@@ -169,15 +108,15 @@ public class ParameterExperiment {
                  Admin admin = connection.getAdmin()) {
                 TableName hTableName = TableName.valueOf(tableName);
                 if (admin.tableExists(hTableName)) {
-                    admin.disableTable(hTableName);
-                    admin.deleteTable(hTableName);
+                    BenchmarkTableCleaner.deleteTableArtifacts(admin, tableName, "127.0.0.1");
                 }
 
                 TableConfig config = TableBuilder.buildConfig(dataset);
-                variant.configure(dataset, config, study);
+                config.setAdaptivePartition(1);
+                config.setOrderDefinitionPath(orderPath);
 
                 TableBuilder builder = new TableBuilder(dataset.getDataFilePath(), outputDir);
-                builder.createTable(variant.baseMethod, tableName, config);
+                builder.createTable(IndexMethod.LETI, tableName, config);
                 ensuredTables.add(tableName);
                 createdTables.add(tableName);
             }
@@ -195,16 +134,43 @@ public class ParameterExperiment {
             try (Connection connection = ConnectionFactory.createConnection(conf);
                  Admin admin = connection.getAdmin()) {
                 for (String tableName : createdTables) {
-                    TableName hTableName = TableName.valueOf(tableName);
-                    if (!admin.tableExists(hTableName)) {
-                        continue;
-                    }
-                    admin.disableTable(hTableName);
-                    admin.deleteTable(hTableName);
+                    BenchmarkTableCleaner.deleteTableArtifacts(admin, tableName, "127.0.0.1");
                 }
             }
         } catch (Exception e) {
             System.err.println("Error cleaning parameter experiment tables: " + e.getMessage());
+        }
+    }
+
+    private void addRows(List<ResultRow> rows, String study, String dataset, String method, String sweepValue,
+                         ExperimentStats stats) {
+        for (String metric : METRICS) {
+            rows.add(ResultRow.value(study, dataset, metric, method, sweepValue, formatMetric(metric, stats)));
+        }
+    }
+
+    private String formatMetric(String metric, ExperimentStats stats) {
+        switch (metric) {
+            case "Latency_ms":
+                return String.valueOf(stats.getLatencyStats().getAvg());
+            case "LogicalIndexRanges":
+                return String.valueOf(stats.getLogicIndexRangeStats().getAvg());
+            case "VisitedCells":
+                return String.valueOf(stats.getVisitedCellsStats().getAvg());
+            case "RowKeyRanges":
+                return String.valueOf(stats.getRowKeyRangeStats().getAvg());
+            default:
+                return "";
+        }
+    }
+
+    private void addFailureRows(List<ResultRow> rows, int resolution, Throwable throwable) {
+        String reason = throwable == null ? "FAILED" : sanitizeStatus(throwable.getClass().getSimpleName() + ":" + throwable.getMessage());
+        for (int minTraj : MIN_TRAJ_VALUES) {
+            String sweepValue = buildSweepValue(resolution, minTraj);
+            for (String metric : METRICS) {
+                rows.add(ResultRow.failure("resolution_minTraj", datasetName, metric, "LETI", sweepValue, reason));
+            }
         }
     }
 
@@ -228,22 +194,21 @@ public class ParameterExperiment {
 
     private void writeResolutionMinTrajTables(List<ResultRow> rows) throws IOException {
         List<String> columns = new ArrayList<>();
-        for (int resolution : RESOLUTION_VALUES) {
-            columns.add(String.valueOf(resolution));
-        }
         for (int minTraj : MIN_TRAJ_VALUES) {
-            columns.add(String.valueOf(minTraj));
+            columns.add("r6_m" + minTraj);
+            columns.add("r7_m" + minTraj);
+            columns.add("r8_m" + minTraj);
+            columns.add("r9_m" + minTraj);
+            columns.add("r10_m" + minTraj);
         }
-        for (String metric : RESOLUTION_MIN_TRAJ_METRICS) {
+        for (String metric : METRICS) {
             Map<String, Map<String, String>> grid = new LinkedHashMap<>();
-            for (MethodVariant variant : standardVariants()) {
-                grid.put(variant.label, new LinkedHashMap<String, String>());
-            }
+            grid.put("LETI", new LinkedHashMap<>());
             for (ResultRow row : rows) {
                 if (!metric.equals(row.metric)) {
                     continue;
                 }
-                if (!"resolution".equals(row.study) && !"minTraj".equals(row.study)) {
+                if (!"resolution_minTraj".equals(row.study)) {
                     continue;
                 }
                 Map<String, String> methodRow = grid.get(row.method);
@@ -251,39 +216,8 @@ public class ParameterExperiment {
                     methodRow.put(row.sweepValue, row.renderedValue());
                 }
             }
-            writePivot(Paths.get(outputDir, "parameter_resolution_minTraj_" + metric + ".csv").toString(),
-                    columns, grid);
+            writePivot(Paths.get(outputDir, "parameter_resolution_minTraj_" + metric + ".csv").toString(), columns, grid);
         }
-    }
-
-    private void writeIndexSizeTable(List<ResultRow> rows) throws IOException {
-        List<String> columns = new ArrayList<>();
-        for (int resolution : RESOLUTION_VALUES) {
-            columns.add(String.valueOf(resolution));
-        }
-        for (int minTraj : MIN_TRAJ_VALUES) {
-            columns.add(String.valueOf(minTraj));
-        }
-        for (int alphaBeta : ALPHA_BETA_VALUES) {
-            columns.add(alphaBeta + "*" + alphaBeta);
-        }
-        Map<String, Map<String, String>> grid = new LinkedHashMap<>();
-        for (MethodVariant variant : indexSizeVariants()) {
-            grid.put(variant.label, new LinkedHashMap<String, String>());
-        }
-        for (ResultRow row : rows) {
-            if (!"IndexSize_KB".equals(row.metric)) {
-                continue;
-            }
-            if (!"resolution".equals(row.study) && !"minTraj".equals(row.study) && !"alpha_beta".equals(row.study)) {
-                continue;
-            }
-            Map<String, String> methodRow = grid.get(row.method);
-            if (methodRow != null) {
-                methodRow.put(row.sweepValue, row.renderedValue());
-            }
-        }
-        writePivot(Paths.get(outputDir, "parameter_index_size.csv").toString(), columns, grid);
     }
 
     private void writePivot(String filePath, List<String> columns, Map<String, Map<String, String>> grid) throws IOException {
@@ -304,249 +238,115 @@ public class ParameterExperiment {
     }
 
     private DatasetConfig defaultConfig() {
-        DatasetConfig config = new DatasetConfig(datasetName, DatasetConfig.SKEWED, 500);
+        DatasetConfig config = new DatasetConfig(datasetName, DatasetConfig.SKEWED, 1000);
         config.setQueryBaseDir(queryBaseDir);
         config.setDataBaseDir(dataBaseDir);
+        config.setQueryType("SRQ");
+        config.setNodes(4);
         config.setResolution(8);
         config.setAlpha(3);
         config.setBeta(3);
-        config.setNodes(4);
-        config.setQueryType("SRQ");
+        config.setLetiAlpha(3);
+        config.setLetiBeta(3);
+        config.setMinTraj(2);
         return config;
     }
 
-    private DatasetConfig copyConfig(DatasetConfig config) {
-        DatasetConfig copy = new DatasetConfig(config.getDatasetName(), config.getDistribution(), config.getQueryRange());
-        copy.setQueryBaseDir(config.getQueryBaseDir());
-        copy.setDataBaseDir(config.getDataBaseDir());
-        copy.setQueryType(config.getQueryType());
-        copy.setNodes(config.getNodes());
-        copy.setResolution(config.getResolution());
-        copy.setAlpha(config.getAlpha());
-        copy.setBeta(config.getBeta());
-        copy.setMinTraj(config.getMinTraj());
-        copy.setShards(config.getShards());
-        copy.setThetaConfig(config.getThetaConfig());
-        copy.setBmtreeConfigPath(config.getBmtreeConfigPath());
-        copy.setBmtreeBitLength(config.getBmtreeBitLength());
-        return copy;
+    private void initializeSummaryCsv() throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(summaryFilePath().toFile()))) {
+            writer.write("Study,Dataset,Metric,Method,SweepValue,Value,Status");
+            writer.newLine();
+        }
     }
 
-    private String buildTableName(MethodVariant variant, DatasetConfig dataset, String study, String sweepValue) {
-        String normalizedSweep = sweepValue.toLowerCase(Locale.ROOT)
-                .replace("*", "x")
-                .replace("(", "")
-                .replace(")", "")
-                .replace(" ", "_")
-                .replace("-", "_");
-        return String.format(Locale.ROOT, "%s_%s_%s_%s",
+    private void appendSummaryRows(List<ResultRow> rows) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(summaryFilePath().toFile(), true))) {
+            for (ResultRow row : rows) {
+                writer.write(String.join(",",
+                        row.study,
+                        row.dataset,
+                        row.metric,
+                        row.method,
+                        row.sweepValue,
+                        row.value,
+                        row.status));
+                writer.newLine();
+            }
+        }
+    }
+
+    private Path summaryFilePath() {
+        return Paths.get(outputDir, "parameter_results_progressive.csv");
+    }
+
+    private void writeResolutionFile(int resolution, List<ResultRow> rows) throws IOException {
+        Path file = Paths.get(outputDir, String.format(Locale.ROOT, "parameter_resolution_%d.csv", resolution));
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file.toFile()))) {
+            writer.write("Study,Dataset,Metric,Method,SweepValue,Value,Status");
+            writer.newLine();
+            for (ResultRow row : rows) {
+                writer.write(String.join(",",
+                        row.study,
+                        row.dataset,
+                        row.metric,
+                        row.method,
+                        row.sweepValue,
+                        row.value,
+                        row.status));
+                writer.newLine();
+            }
+        }
+    }
+
+    private String buildSweepValue(int resolution, int minTraj) {
+        return String.format(Locale.ROOT, "r%d_m%d", resolution, minTraj);
+    }
+
+    private String buildTableName(DatasetConfig dataset, String study, String sweepValue) {
+        String normalizedSweep = sweepValue.toLowerCase(Locale.ROOT).replace(" ", "_").replace("-", "_");
+        return String.format(Locale.ROOT, "%s_leti_%s_%s",
                 dataset.getDatasetName().toLowerCase(Locale.ROOT).replace("-", "_"),
-                variant.tableKey,
                 study,
                 normalizedSweep);
     }
 
-    private List<MethodVariant> standardVariants() {
-        return Arrays.asList(
-                MethodVariant.leti("LETI", "leti", true, null),
-                MethodVariant.standard("TShape", "tshape", IndexMethod.TSHAPE),
-                MethodVariant.standard("XZ*", "xzstar", IndexMethod.XZ_STAR),
-                MethodVariant.lmsfc(),
-                MethodVariant.bmtree()
-        );
+    private String resolveOrderingSelection(DatasetConfig dataset, String study) {
+        String datasetKey = dataset.getDatasetName().toLowerCase(Locale.ROOT).replace('-', '_');
+        String candidate;
+        if ("resolution_minTraj".equals(study)) {
+            candidate = String.format(Locale.ROOT,
+                    "leti/%s/param/quadorder_skewed_res%d_min%d.json",
+                    datasetKey,
+                    dataset.getResolution(),
+                    dataset.getMinTraj());
+        } else {
+            candidate = String.format(Locale.ROOT, "leti/%s/param/skew_order.json", datasetKey);
+        }
+        String resolved = LetiOrderResolver.resolveClasspathResource(candidate);
+        if (ParameterExperiment.class.getClassLoader().getResource(resolved) == null) {
+            throw new IllegalStateException("LETI order resource not found: " + candidate);
+        }
+        return resolved;
     }
 
-    private List<MethodVariant> alphaBetaVariants() {
-        return Arrays.asList(
-                MethodVariant.leti("LETI", "leti", true, null),
-                MethodVariant.standard("TShape", "tshape", IndexMethod.TSHAPE),
-                MethodVariant.standard("XZ*", "xzstar", IndexMethod.XZ_STAR)
-        );
+    private void printResolutionResults(int resolution, List<ResultRow> rows) {
+        System.out.println("[ParameterExperiment] Completed resolution " + resolution);
+        for (ResultRow row : rows) {
+            System.out.printf(Locale.ROOT,
+                    "  [resolution=%d][%s] %s -> %s%n",
+                    resolution,
+                    row.metric,
+                    row.sweepValue,
+                    row.renderedValue());
+        }
+        System.out.println();
     }
 
-    private List<MethodVariant> indexSizeVariants() {
-        return alphaBetaVariants();
-    }
-
-    private interface Configurator {
-        void configure(DatasetConfig dataset, TableConfig config, String study);
-    }
-
-    private static class MethodVariant {
-        final String label;
-        final String tableKey;
-        final IndexMethod baseMethod;
-        final Configurator configurator;
-
-        MethodVariant(String label, String tableKey, IndexMethod baseMethod, Configurator configurator) {
-            this.label = label;
-            this.tableKey = tableKey;
-            this.baseMethod = baseMethod;
-            this.configurator = configurator;
+    private String sanitizeStatus(String value) {
+        if (value == null || value.isEmpty()) {
+            return "FAILED";
         }
-
-        void configure(DatasetConfig dataset, TableConfig config, String study) {
-            if (configurator != null) {
-                configurator.configure(dataset, config, study);
-            }
-        }
-
-        String resolvePendingReason(DatasetConfig dataset, String study) {
-            if (baseMethod != IndexMethod.LETI) {
-                return null;
-            }
-            return resolveOrderingSelection(dataset, null, study).pendingReason;
-        }
-
-        static MethodVariant standard(String label, String tableKey, IndexMethod method) {
-            return new MethodVariant(label, tableKey, method, new Configurator() {
-                @Override
-                public void configure(DatasetConfig dataset, TableConfig config, String study) {
-                    if (method == IndexMethod.LMSFC) {
-                        config.setIsLMSFC(1);
-                        config.setThetaConfig(dataset.getThetaConfigOrDefault());
-                    } else if (method == IndexMethod.BMTREE) {
-                        config.setIsBMTree(1);
-                        config.setBMTreeConfigPath(dataset.getBMTreeConfigPathOrDefault());
-                        config.setBMTreeBitLength(dataset.getBMTreeBitLengthOrDefault());
-                    }
-                }
-            });
-        }
-
-        static MethodVariant leti(final String label, String tableKey, final boolean adaptivePartition, final String orderingPath) {
-            return new MethodVariant(label, tableKey, IndexMethod.LETI, new Configurator() {
-                @Override
-                public void configure(DatasetConfig dataset, TableConfig config, String study) {
-                    config.setAdaptivePartition(adaptivePartition ? 1 : 0);
-                    OrderSelection selection = resolveOrderingSelection(dataset, orderingPath, study);
-                    if (selection.pendingReason != null) {
-                        throw new IllegalStateException(selection.pendingReason);
-                    }
-                    config.setOrderDefinitionPath(selection.path);
-                }
-            });
-        }
-
-        static MethodVariant lmsfc() {
-            return standard("LMSFC", "lmsfc", IndexMethod.LMSFC);
-        }
-
-        static MethodVariant bmtree() {
-            return standard("BMT", "bmt", IndexMethod.BMTREE);
-        }
-
-        private static String normalizeDistribution(String distribution) {
-            if (distribution == null) {
-                return "skew";
-            }
-            switch (distribution.toLowerCase(Locale.ROOT)) {
-                case "uniform":
-                    return "uni";
-                case "gaussian":
-                    return "gauss";
-                case "skewed":
-                    return "skew";
-                default:
-                    return distribution.toLowerCase(Locale.ROOT);
-            }
-        }
-
-        private static OrderSelection resolveOrderingSelection(DatasetConfig dataset, String explicitOrderingPath, String study) {
-            if (explicitOrderingPath != null && !explicitOrderingPath.trim().isEmpty()) {
-                return OrderSelection.value(LetiOrderResolver.resolveClasspathResource(explicitOrderingPath));
-            }
-
-            List<String> specializedCandidates = specializedCandidates(dataset, study);
-            if (!specializedCandidates.isEmpty()) {
-                String resolved = firstExistingResource(specializedCandidates);
-                if (resolved != null) {
-                    return OrderSelection.value(resolved);
-                }
-                String reason = String.format(Locale.ROOT,
-                        "PENDING(%s LETI RLOrder missing; expected one of: %s)",
-                        study,
-                        String.join(" | ", specializedCandidates));
-                System.out.println("[ParameterExperiment] " + reason);
-                return OrderSelection.pending(reason);
-            }
-
-            String candidate = String.format(Locale.ROOT, "leti/%s/%s_order.json",
-                    dataset.getDatasetName().toLowerCase(Locale.ROOT).replace('-', '_'),
-                    normalizeDistribution(dataset.getDistribution()));
-            ClassLoader classLoader = ParameterExperiment.class.getClassLoader();
-            if (classLoader.getResource(candidate) != null) {
-                return OrderSelection.value(LetiOrderResolver.resolveClasspathResource(candidate));
-            }
-            return OrderSelection.value(LetiOrderResolver.defaultOrderPath());
-        }
-
-        private static List<String> specializedCandidates(DatasetConfig dataset, String study) {
-            String datasetKey = dataset.getDatasetName().toLowerCase(Locale.ROOT).replace('-', '_');
-            List<String> candidates = new ArrayList<>();
-            if ("resolution".equals(study)) {
-                int resolution = dataset.getResolution();
-                candidates.add(String.format(Locale.ROOT, "leti/%s/skew_resolution_%d_order.json", datasetKey, resolution));
-                candidates.add(String.format(Locale.ROOT, "leti/%s/resolution_%d_skew_order.json", datasetKey, resolution));
-                candidates.add(String.format(Locale.ROOT, "leti/%s/resolution/%d_order.json", datasetKey, resolution));
-            } else if ("minTraj".equals(study)) {
-                int minTraj = dataset.getMinTraj();
-                candidates.add(String.format(Locale.ROOT, "leti/%s/skew_mintraj_%d_order.json", datasetKey, minTraj));
-                candidates.add(String.format(Locale.ROOT, "leti/%s/mintraj_%d_skew_order.json", datasetKey, minTraj));
-                candidates.add(String.format(Locale.ROOT, "leti/%s/mintraj/%d_order.json", datasetKey, minTraj));
-            }
-            return candidates;
-        }
-
-        private static String firstExistingResource(List<String> candidates) {
-            ClassLoader classLoader = ParameterExperiment.class.getClassLoader();
-            for (String candidate : candidates) {
-                if (classLoader.getResource(candidate) != null) {
-                    return LetiOrderResolver.resolveClasspathResource(candidate);
-                }
-            }
-            return null;
-        }
-    }
-
-    private static final class OrderSelection {
-        final String path;
-        final String pendingReason;
-
-        private OrderSelection(String path, String pendingReason) {
-            this.path = path;
-            this.pendingReason = pendingReason;
-        }
-
-        static OrderSelection value(String path) {
-            return new OrderSelection(path, null);
-        }
-
-        static OrderSelection pending(String reason) {
-            return new OrderSelection(null, reason);
-        }
-    }
-
-    private static final class RunOutcome {
-        final ExperimentStats stats;
-        final String pendingReason;
-
-        private RunOutcome(ExperimentStats stats, String pendingReason) {
-            this.stats = stats;
-            this.pendingReason = pendingReason;
-        }
-
-        static RunOutcome value(ExperimentStats stats) {
-            return new RunOutcome(stats, null);
-        }
-
-        static RunOutcome pending(String pendingReason) {
-            return new RunOutcome(null, pendingReason);
-        }
-
-        boolean isPending() {
-            return pendingReason != null && !pendingReason.isEmpty();
-        }
+        return value.replace("\r", " ").replace("\n", " ").replace(",", ";");
     }
 
     private static class ResultRow {
@@ -572,8 +372,8 @@ public class ParameterExperiment {
             return new ResultRow(study, dataset, metric, method, sweepValue, value, "OK");
         }
 
-        static ResultRow pending(String study, String dataset, String metric, String method, String sweepValue, String reason) {
-            return new ResultRow(study, dataset, metric, method, sweepValue, "", reason);
+        static ResultRow failure(String study, String dataset, String metric, String method, String sweepValue, String status) {
+            return new ResultRow(study, dataset, metric, method, sweepValue, "", status);
         }
 
         String renderedValue() {

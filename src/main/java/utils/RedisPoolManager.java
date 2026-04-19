@@ -38,4 +38,14 @@ public final class RedisPoolManager {
         config.setTestWhileIdle(true);
         return new JedisPool(config, host, port, timeoutMs);
     }
+
+    public static void clearPools() {
+        for (JedisPool pool : POOLS.values()) {
+            try {
+                pool.close();
+            } catch (Exception ignored) {
+            }
+        }
+        POOLS.clear();
+    }
 }

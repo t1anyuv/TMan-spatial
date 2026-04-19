@@ -305,16 +305,11 @@ public class LMSFCRLOrderGenerator {
         ObjectNode metadata = mapper.createObjectNode();
         
         // 计算统计信息
-        int maxShapeBits = quads.stream()
-            .mapToInt(q -> q.alpha * q.beta)
-            .max()
-            .orElse(0);
-        
         // 从原始metadata中获取值，如果不存在则使用默认值
-        int globalAlpha = originalMeta != null ? originalMeta.global_alpha : 3;
-        int globalBeta = originalMeta != null ? originalMeta.global_beta : 3;
-        int maxLevel = originalMeta != null ? originalMeta.max_level : 8;
-        long totalCells = originalMeta != null ? originalMeta.total_cells : 87381;
+        int globalAlpha = originalMeta != null ? originalMeta.globalAlpha : 3;
+        int globalBeta = originalMeta != null ? originalMeta.globalBeta : 3;
+        int maxLevel = originalMeta != null ? originalMeta.maxLevel : 8;
+        long totalCells = originalMeta != null ? originalMeta.totalCells : 87381;
         
         metadata.put("total_cells", totalCells);
         metadata.put("active_cells", quads.size());
@@ -347,9 +342,9 @@ public class LMSFCRLOrderGenerator {
         metadata.put("version", "2.0-LMSFC");
         metadata.put("encoding_method", "LMSFC");
         metadata.put("theta_config", thetaConfig);
-        metadata.put("maxShapeBits", maxShapeBits);
         
         root.set("metadata", metadata);
+        root = OrderFormatConverter.convertOrderRoot(root, OrderFormatConverter.CoverageMode.EXPLICIT, outputPath);
         
         // 写入文件
         File outputFile = new File(outputPath);

@@ -75,7 +75,6 @@ public class TableBuilder {
         config.setOrderEncodingType(1);
         config.setIsXZ(0);
         config.setTspEncoding(1);
-        config.setAdaptivePartition(1);
         try (LetiLoader loader = new LetiLoader(config, sourcePath, resultPath)) {
             loader.store();
         }

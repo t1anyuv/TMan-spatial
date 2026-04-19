@@ -108,6 +108,15 @@ public class QueryPlanner implements Closeable {
     protected long lastScannerOpenNs = 0L;
 
     @Getter
+    protected List<IndexRange> lastLogicalIndexRanges = new ArrayList<>();
+
+    @Getter
+    protected List<IndexRange> lastQuadCodeRanges = new ArrayList<>();
+
+    @Getter
+    protected List<IndexRange> lastQOrderRanges = new ArrayList<>();
+
+    @Getter
     protected List<MultiRowRangeFilter.RowRange> lastComputedRowRanges = new ArrayList<>();
 
     /**
@@ -384,6 +393,7 @@ public class QueryPlanner implements Closeable {
         long redisShapeFilterRateScaled = (stats != null) ? stats.redisShapeFilterRate : 0L;
 
         int visitedCells = clampToInt(visitedCellsLong);
+        this.lastLogicalIndexRanges = copyIndexRanges(ranges);
         updateDebugRangeCounts(kind);
         long rowRangeBuildStartNs = System.nanoTime();
         secondaryRangesToRowkeys(tableName + "_" + SPATIAL.getIndexName(), ranges, rowRanges);
@@ -487,6 +497,7 @@ public class QueryPlanner implements Closeable {
         long redisShapeFilterRateScaled = (stats != null) ? stats.redisShapeFilterRate : 0L;
 
         int visitedCells = clampToInt(visitedCellsLong);
+        this.lastLogicalIndexRanges = copyIndexRanges(ranges);
         updateDebugRangeCounts(kind);
         long rowRangeBuildStartNs = System.nanoTime();
         rangesToRowkey(ranges, rowRanges);
@@ -672,11 +683,12 @@ public class QueryPlanner implements Closeable {
     }
 
     private void updateDebugRangeCounts(TableConfig.SpatialIndexKind kind) {
+        this.lastQuadCodeRanges = new ArrayList<>();
+        this.lastQOrderRanges = new ArrayList<>();
         RangeStatsBridge.Stats stats = getRangeStats(kind);
         if (stats != null) {
             this.lastQuadCodeRangeCount = clampToInt(stats.quadCodeRangeCount);
             this.lastQOrderRangeCount = clampToInt(stats.qOrderRangeCount);
-            return;
         }
         switch (kind) {
             case LETI: {
@@ -685,6 +697,8 @@ public class QueryPlanner implements Closeable {
                         ? 0 : debugRanges.quadCodeRanges.size();
                 this.lastQOrderRangeCount = (debugRanges == null || debugRanges.qOrderRanges == null)
                         ? 0 : debugRanges.qOrderRanges.size();
+                this.lastQuadCodeRanges = copyIndexRanges(debugRanges == null ? null : debugRanges.quadCodeRanges);
+                this.lastQOrderRanges = copyIndexRanges(debugRanges == null ? null : debugRanges.qOrderRanges);
                 break;
             }
             case TShape: {
@@ -692,13 +706,23 @@ public class QueryPlanner implements Closeable {
                 this.lastQuadCodeRangeCount = (debugRanges == null || debugRanges.quadCodeRanges == null)
                         ? 0 : debugRanges.quadCodeRanges.size();
                 this.lastQOrderRangeCount = 0;
+                this.lastQuadCodeRanges = copyIndexRanges(debugRanges == null ? null : debugRanges.quadCodeRanges);
                 break;
             }
             default:
-                this.lastQuadCodeRangeCount = 0;
-                this.lastQOrderRangeCount = 0;
+                if (stats == null) {
+                    this.lastQuadCodeRangeCount = 0;
+                    this.lastQOrderRangeCount = 0;
+                }
                 break;
         }
+    }
+
+    private static List<IndexRange> copyIndexRanges(List<IndexRange> ranges) {
+        if (ranges == null || ranges.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(ranges);
     }
 
     /**
@@ -762,6 +786,9 @@ public class QueryPlanner implements Closeable {
         this.lastIndexRangeComputeNs = 0L;
         this.lastRowRangeBuildNs = 0L;
         this.lastScannerOpenNs = 0L;
+        this.lastLogicalIndexRanges = new ArrayList<>();
+        this.lastQuadCodeRanges = new ArrayList<>();
+        this.lastQOrderRanges = new ArrayList<>();
         this.lastComputedRowRanges = new ArrayList<>();
     }
 

@@ -189,25 +189,6 @@ public class SpatialFilter extends FilterBase {
             );
         }
         try (Jedis jedis = RedisPoolManager.getResource(config.getRedisHost())) {
-            boolean useNativeQOrderTreeRanges = true;
-            String nativeQOrderTreeFlag = System.getProperty("tman.leti.useNativeQOrderTreeRanges");
-            if (nativeQOrderTreeFlag != null) {
-                useNativeQOrderTreeRanges = Boolean.parseBoolean(nativeQOrderTreeFlag);
-            }
-            if (Boolean.getBoolean("tman.leti.disableNativeQOrderTreeRanges")) {
-                useNativeQOrderTreeRanges = false;
-            }
-
-            if (useNativeQOrderTreeRanges) {
-                return letiLocSIndex.rangesWithNativeQOrderTree(
-                        envelope.xmin,
-                        envelope.ymin,
-                        envelope.xmax,
-                        envelope.ymax,
-                        jedis,
-                        tableName
-                );
-            }
             return letiLocSIndex.ranges(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax, jedis, tableName);
         }
     }
