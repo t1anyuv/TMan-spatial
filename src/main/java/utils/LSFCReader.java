@@ -149,7 +149,6 @@ public class LSFCReader {
         Set<Long> validParentCodes = new HashSet<>();
 
         IndexMeta metadata = parseMetadata(root);
-        int maxShapeBits = 0;
         Set<Integer> distinctOrders = new HashSet<>();
 
         JsonNode orderingNode = root.get("ordering");
@@ -176,16 +175,10 @@ public class LSFCReader {
                 validParentCodes.add(parentCode);
                 quadCodeOrderMap.put(parentCode, order);
                 quadCodeToParentMap.put(parentCode, parentQuad);
-
-                int shapeBits = parentQuad.alpha * parentQuad.beta;
-                if (shapeBits > maxShapeBits) {
-                    maxShapeBits = shapeBits;
-                }
             }
         }
 
         if (metadata != null) {
-            metadata.maxShapeBits = maxShapeBits;
             metadata.orderCount = distinctOrders.size();
             if (!metadata.contiguousSubtreeOrdersSpecified && sawSubtreeCountHint && !sawExplicitSubtreeOrders) {
                 metadata.contiguousSubtreeOrders = true;
@@ -206,7 +199,6 @@ public class LSFCReader {
         }
 
         List<EffectiveNodeEntry> entries = new ArrayList<>();
-        int maxShapeBits = 0;
         Set<Integer> distinctOrders = new HashSet<>();
 
         JsonNode orderingNode = root.get("ordering");
@@ -232,15 +224,9 @@ public class LSFCReader {
                 long elementCode = parentQuad.elementCode;
                 long subtreeUpper = intervalUpperBound(elementCode, parentQuad.level, metadata.maxLevel);
                 entries.add(new EffectiveNodeEntry(elementCode, subtreeUpper, order, parentQuad));
-
-                int shapeBits = parentQuad.alpha * parentQuad.beta;
-                if (shapeBits > maxShapeBits) {
-                    maxShapeBits = shapeBits;
-                }
             }
         }
 
-        metadata.maxShapeBits = maxShapeBits;
         metadata.orderCount = distinctOrders.size();
         if (!metadata.contiguousSubtreeOrdersSpecified && sawSubtreeCountHint && !sawExplicitSubtreeOrders) {
             metadata.contiguousSubtreeOrders = true;
@@ -594,9 +580,6 @@ public class LSFCReader {
         public int maxPartition;
         public int minTrajs;
         public int[][] partitionSearch;
-
-        /** Largest {@code alpha * beta} across all effective nodes. */
-        public int maxShapeBits;
 
         /** Number of distinct qOrders stored in the file. */
         public int orderCount;

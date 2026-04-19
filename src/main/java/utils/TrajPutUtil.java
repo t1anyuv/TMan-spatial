@@ -337,8 +337,8 @@ public class TrajPutUtil implements Serializable {
         Tuple3<Object, Object, Object> sIndex = sfc.index(geo, false);
         long location = (long) sIndex._2();
         long shape = (long) sIndex._3();
-        int moveBits = config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI && config.isAdaptivePartition()
-                ? config.getMaxShapeBits()
+        int moveBits = config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI && config.getMainTableMoveBits() > 0
+                ? config.getMainTableMoveBits()
                 : config.getAlpha() * config.getBeta();
         return shape | (location << moveBits);
     }

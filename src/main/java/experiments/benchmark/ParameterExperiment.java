@@ -203,7 +203,7 @@ public class ParameterExperiment {
         }
         for (String metric : METRICS) {
             Map<String, Map<String, String>> grid = new LinkedHashMap<>();
-            grid.put("LETI", new LinkedHashMap<String, String>());
+            grid.put("LETI", new LinkedHashMap<>());
             for (ResultRow row : rows) {
                 if (!metric.equals(row.metric)) {
                     continue;
@@ -246,7 +246,9 @@ public class ParameterExperiment {
         config.setResolution(8);
         config.setAlpha(3);
         config.setBeta(3);
-        config.setMinTraj(4);
+        config.setLetiAlpha(3);
+        config.setLetiBeta(3);
+        config.setMinTraj(2);
         return config;
     }
 

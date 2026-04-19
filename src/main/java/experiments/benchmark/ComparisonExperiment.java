@@ -198,10 +198,16 @@ public class ComparisonExperiment {
      */
     private void configureLETI(DatasetConfig dataset, TableConfig config) {
         String orderDefinitionPath = resolveLetiOrderingPath(dataset);
+        int letiAlpha = dataset.getLetiAlphaOrDefault();
+        int letiBeta = dataset.getLetiBetaOrDefault();
         config.setAdaptivePartition(1);
+        config.setAlpha(letiAlpha);
+        config.setBeta(letiBeta);
         config.setOrderDefinitionPath(orderDefinitionPath);
         System.out.println("Configuring LETI index:");
         System.out.println("  - adaptivePartition: 1");
+        System.out.println("  - alpha: " + letiAlpha);
+        System.out.println("  - beta: " + letiBeta);
         System.out.println("  - orderDefinitionPath: " + orderDefinitionPath);
     }
 
@@ -330,10 +336,27 @@ public class ComparisonExperiment {
 
     private String buildLetiTableName(IndexMethod method, String datasetName, String distribution) {
         String dist = distribution == null ? "default" : distribution.toLowerCase(Locale.ROOT);
-        return String.format("%s_%s_%s",
+        DatasetConfig letiDataset = findDatasetByDistribution(distribution);
+        int letiAlpha = letiDataset == null ? 3 : letiDataset.getLetiAlphaOrDefault();
+        int letiBeta = letiDataset == null ? 3 : letiDataset.getLetiBetaOrDefault();
+        return String.format("%s_%s_%s_a%d_b%d",
                 datasetName.toLowerCase(Locale.ROOT),
                 method.getShortName().toLowerCase(Locale.ROOT),
-                dist);
+                dist,
+                letiAlpha,
+                letiBeta);
+    }
+
+    private DatasetConfig findDatasetByDistribution(String distribution) {
+        if (distribution == null) {
+            return datasets.isEmpty() ? null : datasets.get(0);
+        }
+        for (DatasetConfig dataset : datasets) {
+            if (distribution.equalsIgnoreCase(dataset.getDistribution())) {
+                return dataset;
+            }
+        }
+        return datasets.isEmpty() ? null : datasets.get(0);
     }
     
     /**
@@ -573,8 +596,8 @@ public class ComparisonExperiment {
         exp.addMethod(IndexMethod.LETI);
         exp.addMethod(IndexMethod.TSHAPE);
         exp.addMethod(IndexMethod.XZ_STAR);
-//        exp.addMethod(IndexMethod.LMSFC);
-//        exp.addMethod(IndexMethod.BMTREE);
+        exp.addMethod(IndexMethod.LMSFC);
+        exp.addMethod(IndexMethod.BMTREE);
         
         // 设置标准实验配置
         exp.setDatasetName(datasetName);

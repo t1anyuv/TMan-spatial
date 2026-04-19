@@ -240,8 +240,8 @@ public class LocSProfileExperiment {
     }
 
     private int resolveMoveBits(TableConfig config, boolean leti) {
-        if (leti && config.isAdaptivePartition() && config.getMaxShapeBits() > 0) {
-            return config.getMaxShapeBits();
+        if (leti && config.getMainTableMoveBits() > 0) {
+            return config.getMainTableMoveBits();
         }
         return config.getAlpha() * config.getBeta();
     }

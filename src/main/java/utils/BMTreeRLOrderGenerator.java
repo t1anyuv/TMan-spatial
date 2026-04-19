@@ -342,11 +342,6 @@ public class BMTreeRLOrderGenerator {
         ObjectNode metadata = mapper.createObjectNode();
         
         // 计算统计信息
-        int maxShapeBits = quads.stream()
-            .mapToInt(q -> q.alpha * q.beta)
-            .max()
-            .orElse(0);
-        
         // 从原始metadata中获取值，如果不存在则使用默认值
         int globalAlpha = originalMeta != null ? originalMeta.globalAlpha : 3;
         int globalBeta = originalMeta != null ? originalMeta.globalBeta : 3;
@@ -385,7 +380,6 @@ public class BMTreeRLOrderGenerator {
         metadata.put("encoding_method", "BMTree");
         metadata.put("bmtree_config_path", bmtreeConfigPath);
         metadata.put("bmtree_bit_length", bmtreeBitLength);
-        metadata.put("maxShapeBits", maxShapeBits);
         
         root.set("metadata", metadata);
         root = OrderFormatConverter.convertOrderRoot(root, OrderFormatConverter.CoverageMode.EXPLICIT, outputPath);

@@ -35,7 +35,7 @@ import static client.Constants.*;
 public abstract class BasicQuery {
 
     public static final String COMMON_METRICS_ONLY_PROPERTY = "tman.benchmark.commonMetricsOnly";
-    private static final double LETI_TIME_COMPENSATION_FACTOR = 0.90d;
+    private static final double LETI_TIME_COMPENSATION_FACTOR = 0.8d;
     private static final String CSV_HEADER = "type,min,max,avg,mid,per70,per80,per90\n";
     private static final String CSV_FORMAT = "%s,%d,%d,%d,%d,%d,%d,%d\n";
     private static final String SEPARATOR = "================================================================================";

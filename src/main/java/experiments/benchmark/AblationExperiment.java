@@ -6,6 +6,7 @@ import experiments.benchmark.config.IndexMethod;
 import experiments.benchmark.io.BenchmarkTableCleaner;
 import experiments.benchmark.io.TableBuilder;
 import experiments.benchmark.model.ExperimentStats;
+import lombok.Setter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
@@ -35,6 +36,10 @@ public class AblationExperiment {
     private final String datasetName;
     private final BenchmarkRunner runner;
     private final Set<String> createdTables = new LinkedHashSet<>();
+    @Setter
+    private Integer letiAlpha;
+    @Setter
+    private Integer letiBeta;
 
     public AblationExperiment(String queryBaseDir, String dataBaseDir, String outputDir, String datasetName) {
         this.queryBaseDir = queryBaseDir;
@@ -83,6 +88,9 @@ public class AblationExperiment {
         config.setResolution(8);
         config.setAlpha(3);
         config.setBeta(3);
+        config.setLetiAlpha(3);
+        config.setLetiBeta(3);
+        config.setMinTraj(4);
         config.setNodes(4);
         config.setQueryType("SRQ");
         return config;
@@ -90,10 +98,10 @@ public class AblationExperiment {
 
     private List<Variant> variants() {
         return Arrays.asList(
-                new Variant("LETI", IndexMethod.LETI, true, "leti/tdrive/quadorder_skewed_res8_min4.json"),
-                new Variant("LETI-BMT", IndexMethod.BMTREE, false, null),
-                new Variant("LETI-LMSFC", IndexMethod.LMSFC, false, null),
-                new Variant("LETI-ab", IndexMethod.LETI, false, "leti/tdrive/quadorder_skewed_res8_min4.json")
+                new Variant("LETI", true, OrderFamily.LETI),
+                new Variant("LETI-BMT", true, OrderFamily.BMTREE),
+                new Variant("LETI-LMSFC", true, OrderFamily.LMSFC),
+                new Variant("LETI-ab", false, OrderFamily.LETI)
         );
     }
 
@@ -120,35 +128,51 @@ public class AblationExperiment {
     }
 
     private void configureTable(DatasetConfig dataset, TableConfig config, Variant variant) {
-        switch (variant.method) {
-            case LETI:
-                config.setAdaptivePartition(variant.adaptivePartition ? 1 : 0);
-                config.setOrderDefinitionPath(resolveOrderingPath(dataset, variant));
-                break;
-            case LMSFC:
-                config.setThetaConfig(dataset.getThetaConfigOrDefault());
-                break;
-            case BMTREE:
-                config.setBMTreeConfigPath(dataset.getBMTreeConfigPathOrDefault());
-                config.setBMTreeBitLength(dataset.getBMTreeBitLengthOrDefault());
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported ablation variant method: " + variant.method);
-        }
+        config.setAlpha(dataset.getLetiAlphaOrDefault());
+        config.setBeta(dataset.getLetiBetaOrDefault());
+        config.setAdaptivePartition(variant.adaptivePartition ? 1 : 0);
+        config.setOrderDefinitionPath(resolveOrderingPath(dataset, variant));
     }
 
     private String resolveOrderingPath(DatasetConfig dataset, Variant variant) {
-        if (variant.explicitOrderingPath != null && !variant.explicitOrderingPath.trim().isEmpty()) {
-            return LetiOrderResolver.resolveClasspathResource(variant.explicitOrderingPath);
+        if (variant.orderFamily == OrderFamily.BMTREE || variant.orderFamily == OrderFamily.LMSFC) {
+            return resolveAlternativeOrderingPath(dataset, variant.orderFamily);
         }
-        String candidate = String.format(Locale.ROOT, "leti/%s/%s_order.json",
-                dataset.getDatasetName().toLowerCase(Locale.ROOT).replace('-', '_'),
-                normalizeDistribution(dataset.getDistribution()));
+        String datasetKey = dataset.getDatasetName().toLowerCase(Locale.ROOT).replace('-', '_');
+        String candidate = String.format(Locale.ROOT, "leti/%s/param/quadorder_%s_res%d_min%d.json",
+                datasetKey,
+                normalizeFullDistribution(dataset.getDistribution()),
+                dataset.getResolution(),
+                dataset.getMinTraj());
         ClassLoader classLoader = AblationExperiment.class.getClassLoader();
         if (classLoader.getResource(candidate) != null) {
             return LetiOrderResolver.resolveClasspathResource(candidate);
         }
+        String comparisonCandidate = String.format(Locale.ROOT, "leti/%s/comparison/%s_order.json",
+                datasetKey,
+                normalizeDistribution(dataset.getDistribution()));
+        if (classLoader.getResource(comparisonCandidate) != null) {
+            return LetiOrderResolver.resolveClasspathResource(comparisonCandidate);
+        }
         return LetiOrderResolver.defaultOrderPath();
+    }
+
+    private String resolveAlternativeOrderingPath(DatasetConfig dataset, OrderFamily orderFamily) {
+        String datasetKey = dataset.getDatasetName().toLowerCase(Locale.ROOT).replace('-', '_');
+        String familyDir = orderFamily == OrderFamily.BMTREE ? "bmtree" : "lmsfc";
+        String distCandidate = String.format(Locale.ROOT, "%s/%s/%s_order.json",
+                familyDir,
+                datasetKey,
+                normalizeDistribution(dataset.getDistribution()));
+        ClassLoader classLoader = AblationExperiment.class.getClassLoader();
+        if (classLoader.getResource(distCandidate) != null) {
+            return distCandidate;
+        }
+        String uniformFallback = String.format(Locale.ROOT, "%s/%s/uni_order.json", familyDir, datasetKey);
+        if (classLoader.getResource(uniformFallback) != null) {
+            return uniformFallback;
+        }
+        throw new IllegalStateException("Order resource not found for " + orderFamily + ": " + distCandidate);
     }
 
     private String normalizeDistribution(String distribution) {
@@ -167,13 +191,31 @@ public class AblationExperiment {
         }
     }
 
+    private String normalizeFullDistribution(String distribution) {
+        if (distribution == null) {
+            return "skewed";
+        }
+        return distribution.toLowerCase(Locale.ROOT);
+    }
+
     private String buildTableName(Variant variant) {
         return String.format(Locale.ROOT, "%s_ablation_%s",
                 datasetName.toLowerCase(Locale.ROOT).replace("-", "_"),
                 variant.label.toLowerCase(Locale.ROOT)
                         .replace("(", "_")
                         .replace(")", "")
-                        .replace("-", "_"));
+                        .replace("-", "_")
+                        + (variant.method == IndexMethod.LETI
+                        ? String.format(Locale.ROOT, "_a%d_b%d", resolveLetiAlpha(), resolveLetiBeta())
+                        : ""));
+    }
+
+    private int resolveLetiAlpha() {
+        return letiAlpha == null || letiAlpha <= 0 ? 3 : letiAlpha;
+    }
+
+    private int resolveLetiBeta() {
+        return letiBeta == null || letiBeta <= 0 ? 3 : letiBeta;
     }
 
     private void writeMetricsCsv(List<MetricsRow> rows) throws IOException {
@@ -237,14 +279,20 @@ public class AblationExperiment {
         final String label;
         final IndexMethod method;
         final boolean adaptivePartition;
-        final String explicitOrderingPath;
+        final OrderFamily orderFamily;
 
-        Variant(String label, IndexMethod method, boolean adaptivePartition, String explicitOrderingPath) {
+        Variant(String label, boolean adaptivePartition, OrderFamily orderFamily) {
             this.label = label;
-            this.method = method;
+            this.method = IndexMethod.LETI;
             this.adaptivePartition = adaptivePartition;
-            this.explicitOrderingPath = explicitOrderingPath;
+            this.orderFamily = orderFamily;
         }
+    }
+
+    private enum OrderFamily {
+        LETI,
+        BMTREE,
+        LMSFC
     }
 
     private static class MetricsRow {
@@ -316,6 +364,29 @@ public class AblationExperiment {
 
         static MetricsRow from(Variant variant, ExperimentStats stats) {
             DatasetConfig dataset = stats.getDataset();
+            int effectiveAlpha = variant.method == IndexMethod.LETI ? dataset.getLetiAlphaOrDefault() : dataset.getAlpha();
+            int effectiveBeta = variant.method == IndexMethod.LETI ? dataset.getLetiBetaOrDefault() : dataset.getBeta();
+            String orderPath;
+            switch (variant.orderFamily) {
+                case BMTREE:
+                    orderPath = String.format(Locale.ROOT, "bmtree/%s/%s_order.json",
+                            dataset.getDatasetName().toLowerCase(Locale.ROOT).replace('-', '_'),
+                            normalizeDistributionStatic(dataset.getDistribution()));
+                    break;
+                case LMSFC:
+                    orderPath = String.format(Locale.ROOT, "lmsfc/%s/%s_order.json",
+                            dataset.getDatasetName().toLowerCase(Locale.ROOT).replace('-', '_'),
+                            normalizeDistributionStatic(dataset.getDistribution()));
+                    break;
+                case LETI:
+                default:
+                    orderPath = String.format(Locale.ROOT, "leti/%s/param/quadorder_%s_res%d_min%d.json",
+                            dataset.getDatasetName().toLowerCase(Locale.ROOT).replace('-', '_'),
+                            dataset.getDistribution() == null ? "skewed" : dataset.getDistribution().toLowerCase(Locale.ROOT),
+                            dataset.getResolution(),
+                            dataset.getMinTraj());
+                    break;
+            }
             return new MetricsRow(
                     variant.label,
                     dataset.getDatasetName(),
@@ -323,10 +394,10 @@ public class AblationExperiment {
                     dataset.getDistribution(),
                     dataset.getQueryRange(),
                     dataset.getResolution(),
-                    dataset.getAlpha(),
-                    dataset.getBeta(),
+                    effectiveAlpha,
+                    effectiveBeta,
                     variant.adaptivePartition ? 1 : 0,
-                    variant.explicitOrderingPath == null ? "" : variant.explicitOrderingPath,
+                    orderPath,
                     stats.getLatencyStats().getAvg(),
                     stats.getLogicIndexRangeStats().getAvg(),
                     stats.getQuadCodeRangeStats().getAvg(),
@@ -339,6 +410,22 @@ public class AblationExperiment {
                     stats.getRedisShapeFilterRateScaledStats().getAvg(),
                     stats.getIndexSizeKb()
             );
+        }
+
+        private static String normalizeDistributionStatic(String distribution) {
+            if (distribution == null) {
+                return "skew";
+            }
+            switch (distribution.toLowerCase(Locale.ROOT)) {
+                case "uniform":
+                    return "uni";
+                case "gaussian":
+                    return "gauss";
+                case "skewed":
+                    return "skew";
+                default:
+                    return distribution.toLowerCase(Locale.ROOT);
+            }
         }
 
         static String csv(String value) {

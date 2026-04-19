@@ -72,24 +72,21 @@ class LETILocSIndex(
    * 最大形状位数，用于统一编码空间
    * 自适应划分时从 order metadata 获取，否则使用全局 alpha * beta
    */
-  private val metaMaxShapeBits: Int = if (mapper.metadata != null) mapper.metadata.maxShapeBits else alpha * beta
+  private val redisShapeMoveBits: Int =
+    if (mapper.metadata != null && mapper.metadata.maxPartition > 0) mapper.metadata.maxPartition
+    else alpha * beta
 
   private val supportsContiguousSubtreeOrders: Boolean =
     mapper.metadata != null && mapper.metadata.contiguousSubtreeOrders
 
   /**
-   * Keep LETI's outer expanded element fixed at 2x2 so containment/intersection
-   * semantics stay closer to TShape/XZ-style EE behavior, while the inner
-   * signature grid can still use adaptive partitioning.
-   */
-  private val outerEEAlpha: Int = 2
-  private val outerEEBeta: Int = 2
-
-  /**
    * 形状编码的位数
    * 自适应划分时使用 maxShapeBits，否则使用全局 alpha * beta
    */
-  private val moveBits: Int = if (adaptivePartition && metaMaxShapeBits > 0) metaMaxShapeBits else alpha * beta
+  private val mainTableMoveBits: Int =
+    if (mapper.metadata != null && mapper.metadata.maxShapes > 0L) {
+      math.max(1, 64 - java.lang.Long.numberOfLeadingZeros(mapper.metadata.maxShapes))
+    } else 1
 
   private val qOrderRoots: java.util.List[QOrderTreeNode] = buildQOrderTree()
 
@@ -218,14 +215,14 @@ class LETILocSIndex(
             val elem = it.next()
             val payload = elem.getBinaryElement
             val originIndex = Bytes.toLong(payload, 8)
-            val tupleQOrder = (originIndex >>> moveBits).toInt
-            val shapeCode = originIndex & ((1L << moveBits) - 1L)
+            val tupleQOrder = (originIndex >>> redisShapeMoveBits).toInt
+            val shapeCode = originIndex & lowBitsMask(redisShapeMoveBits)
             val signature = task.signatureByQOrder.get(lang.Integer.valueOf(tupleQOrder))
 
             redisTupleTotal += 1
             if (signature != null && (signature.longValue() & shapeCode) != 0L) {
               val shapeOrder = Bytes.toInt(payload, 4)
-              val rowKey = (tupleQOrder.toLong << moveBits) | shapeOrder
+              val rowKey = (tupleQOrder.toLong << mainTableMoveBits) | shapeOrder
               ranges.add(IndexRange(rowKey, rowKey, contained = false))
               redisTuplePassed += 1
               val key = lang.Integer.valueOf(tupleQOrder)
@@ -304,8 +301,8 @@ class LETILocSIndex(
 
     def appendBatch(): Unit = {
       if (currentMap != null && !currentMap.isEmpty) {
-        val minScore = currentStart.toLong << moveBits
-        val maxScore = ((currentEnd.toLong + 1L) << moveBits) - 1L
+        val minScore = currentStart.toLong << redisShapeMoveBits
+        val maxScore = ((currentEnd.toLong + 1L) << redisShapeMoveBits) - 1L
         batches.add(
           IntersectBatch(
             currentStart,
@@ -423,7 +420,7 @@ class LETILocSIndex(
                                            rowKeyRanges: java.util.List[IndexRange]
                                          ): Unit = {
     qOrderRanges.add(IndexRange(runStart.toLong, runEnd.toLong, contained = true))
-    rowKeyRanges.add(IndexRange(runStart.toLong << moveBits, ((runEnd.toLong + 1L) << moveBits) - 1L, contained = true))
+    rowKeyRanges.add(IndexRange(runStart.toLong << mainTableMoveBits, ((runEnd.toLong + 1L) << mainTableMoveBits) - 1L, contained = true))
   }
 
   /**
@@ -462,12 +459,12 @@ class LETILocSIndex(
           val cellHeight = parent.ymax - parent.ymin
           val eeXmin = parent.xmin
           val eeYmin = parent.ymin
-          val eeXmax = parent.xmin + outerEEAlpha * cellWidth
-          val eeYmax = parent.ymin + outerEEBeta * cellHeight
+          val eeXmax = parent.xmin + alpha * cellWidth
+          val eeYmax = parent.ymin + beta * cellHeight
           val partitionAlpha = if (adaptivePartition) parent.alpha else alpha
           val partitionBeta = if (adaptivePartition) parent.beta else beta
-          val minScore = order.longValue() << moveBits
-          val maxScore = ((order.longValue() + 1L) << moveBits) - 1L
+          val minScore = order.longValue() << redisShapeMoveBits
+          val maxScore = ((order.longValue() + 1L) << redisShapeMoveBits) - 1L
           Some(
             QOrderTreeNode(
               quadCode = code,
@@ -571,8 +568,8 @@ class LETILocSIndex(
 
     val eeXmin = cellXmin
     val eeYmin = cellYmin
-    val eeXmax = cellXmin + outerEEAlpha * cellWidth
-    val eeYmax = cellYmin + outerEEBeta * cellHeight
+    val eeXmax = cellXmin + alpha * cellWidth
+    val eeYmax = cellYmin + beta * cellHeight
 
     val qXmin = qw.xmin
     val qYmin = qw.ymin
@@ -655,6 +652,12 @@ class LETILocSIndex(
 
     result.append(current)
     result.asJava
+  }
+
+  private def lowBitsMask(bits: Int): Long = {
+    if (bits <= 0) 0L
+    else if (bits >= 63) -1L
+    else (1L << bits) - 1L
   }
 }
 

@@ -29,14 +29,15 @@ import static utils.TrajPutUtil.getPutWithIndex;
 import static utils.TrajPutUtil.getSpatialIndex;
 import static client.Constants.DEFAULT_CF;
 import static client.Constants.META_TABLE_ADAPTIVE_PARTITION;
-import static client.Constants.META_TABLE_MAX_SHAPE_BITS;
+import static client.Constants.META_TABLE_MAIN_TABLE_MOVE_BITS;
 import static client.Constants.META_TABLE_ORDER_DEFINITION_PATH;
 
 public class LetiLoader extends Loader {
     private static final String LETI_UNION_MASK_SUFFIX = ":leti:union_mask";
 
     LSFCReader.EffectiveNodeIndex effectiveNodeIndex;
-    int maxShapeBits;
+    int redisShapeMoveBits;
+    int mainTableMoveBits;
 
     /**
      * 构造函数：初始化 LETI 索引加载器
@@ -58,11 +59,9 @@ public class LetiLoader extends Loader {
         config.setOrderDefinitionPath(orderingPath);
         LSFCReader.EffectiveNodeIndex mapper = LSFCReader.loadEffectiveOnlyFromClasspath(orderingPath);
         effectiveNodeIndex = mapper;
-        maxShapeBits = mapper.metadata != null ? mapper.metadata.maxShapeBits : config.getAlpha() * config.getBeta();
-        if (maxShapeBits == 0) {
-            maxShapeBits = config.getAlpha() * config.getBeta();
-        }
-        config.setMaxShapeBits(maxShapeBits);
+        redisShapeMoveBits = resolveRedisShapeMoveBits(mapper.metadata, config);
+        mainTableMoveBits = resolveMainTableMoveBits(mapper.metadata);
+        config.setMainTableMoveBits(mainTableMoveBits);
         applyLetiMeta(config, orderingPath, mapper);
     }
 
@@ -91,11 +90,9 @@ public class LetiLoader extends Loader {
         config.setOrderDefinitionPath(orderingPath);
         LSFCReader.EffectiveNodeIndex rlOrderingData = LSFCReader.loadEffectiveOnlyFromClasspath(orderingPath);
         effectiveNodeIndex = rlOrderingData;
-        maxShapeBits = rlOrderingData.metadata != null ? rlOrderingData.metadata.maxShapeBits : config.getAlpha() * config.getBeta();
-        if (maxShapeBits == 0) {
-            maxShapeBits = config.getAlpha() * config.getBeta();
-        }
-        config.setMaxShapeBits(maxShapeBits);
+        redisShapeMoveBits = resolveRedisShapeMoveBits(rlOrderingData.metadata, config);
+        mainTableMoveBits = resolveMainTableMoveBits(rlOrderingData.metadata);
+        config.setMainTableMoveBits(mainTableMoveBits);
         applyLetiMeta(config, orderingPath, rlOrderingData);
     }
 
@@ -138,8 +135,8 @@ public class LetiLoader extends Loader {
                 Bytes.toBytes(META_TABLE_ADAPTIVE_PARTITION),
                 Bytes.toBytes(config.getAdaptivePartition()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF),
-                Bytes.toBytes(META_TABLE_MAX_SHAPE_BITS),
-                Bytes.toBytes(config.getMaxShapeBits()));
+                Bytes.toBytes(META_TABLE_MAIN_TABLE_MOVE_BITS),
+                Bytes.toBytes(config.getMainTableMoveBits()));
     }
 
     @Override
@@ -158,7 +155,8 @@ public class LetiLoader extends Loader {
         try (JavaSparkContext context = new JavaSparkContext(conf)) {
             JavaRDD<String> rawTrajRDD = context.textFile(sourcePath);
 
-            int moveBits = config.isAdaptivePartition() ? maxShapeBits : config.getAlpha() * config.getBeta();
+            int redisMoveBits = redisShapeMoveBits;
+            int rowKeyMoveBits = mainTableMoveBits;
             final TableConfig taskConfig = config;
             final String taskTableName = tableName;
             final Broadcast<LSFCReader.EffectiveNodeIndex> effectiveNodeIndexBc = context.broadcast(effectiveNodeIndex);
@@ -220,7 +218,7 @@ public class LetiLoader extends Loader {
                                             + ", shapeCode=" + rawInfo.shapeCodeInParent);
                                 }
 
-                                long rowKeyIndex = (quadOrder << moveBits) | shapeOrder;
+                                long rowKeyIndex = (quadOrder << rowKeyMoveBits) | shapeOrder;
                                 Tuple3<Put, Long, List<KeyValue>> putWithIndex = getPutWithIndex(rawInfo.rawTraj,
                                         rowKeyIndex, taskConfig);
 
@@ -229,7 +227,7 @@ public class LetiLoader extends Loader {
 
                                 Map<String, Tuple2<Long, byte[]>> secondaryIndexMap = new HashMap<>();
 
-                                long originIndex = (quadOrder << moveBits) | rawInfo.shapeCodeInParent;
+                                long originIndex = (quadOrder << redisMoveBits) | rawInfo.shapeCodeInParent;
                                 secondaryIndexMap.put(taskTableName, new Tuple2<>(originIndex, Bytes.toBytes(shapeOrder)));
 
                                 return new Tuple3<>(put, secondaryIndexMap, keyValues);
@@ -394,6 +392,20 @@ public class LetiLoader extends Loader {
 
         return new TrajIndexResult(level, quadCode, effectiveNode.elementCode, effectiveNode.order,
                 shapeCode, shapeCodeInParent, parentQuad, geo);
+    }
+
+    private static int resolveRedisShapeMoveBits(LSFCReader.IndexMeta metadata, TableConfig config) {
+        if (metadata != null && metadata.maxPartition > 0) {
+            return metadata.maxPartition;
+        }
+        return config.getAlpha() * config.getBeta();
+    }
+
+    private static int resolveMainTableMoveBits(LSFCReader.IndexMeta metadata) {
+        if (metadata != null && metadata.maxShapes > 0) {
+            return Math.max(1, 64 - Long.numberOfLeadingZeros(metadata.maxShapes));
+        }
+        return 1;
     }
 
     /**
