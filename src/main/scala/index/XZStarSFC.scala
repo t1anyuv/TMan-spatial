@@ -7,14 +7,6 @@ import org.locationtech.sfcurve.IndexRange
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-/**
- * XZ_STAR：基于论文里的 XZStarSFC（这里仅集成 SRQ 矩形 ranges + index 编码）。
- *
- * 按你的要求：
- * - XZ_STAR 不依赖其它方法的 tspEncoding
- * - XZ_STAR 固定使用 2*2 的 shape 语义
- * - KNN / 相似度候选生成先不接入
- */
 class XZStarSFC(
     g: Short,
     xBounds: (Double, Double),
@@ -104,6 +96,52 @@ class XZStarSFC(
   private val psMaximum: Array[Int] = Array(0, 10, 0, 1, 0, 2, 9, 3, 0, 8, 0, 5, 0, 6, 7, 4)
 
   private val pre: PrecisionModel = new PrecisionModel()
+
+  def indexSpace2(env: Envelope, posCode: Long): IndexPar = {
+    val (nxmin, nymin, nxmax, nymax) =
+      normalize(env.getMinX, env.getMinY, env.getMaxX, env.getMaxY, lenient = false)
+
+    val maxDim = math.max(nxmax - nxmin, nymax - nymin)
+    val l1 = math.floor(math.log(maxDim) / XZSFC.LogPointFive).toInt
+
+    val length =
+      if (l1 >= g) {
+        g
+      } else {
+        val w2 = math.pow(0.5, l1 + 1)
+        def predicate(min: Double, max: Double): Boolean =
+          max <= (math.floor(min / w2) * w2) + (2 * w2)
+
+        if (predicate(nxmin, nxmax) && predicate(nymin, nymax)) l1 + 1 else l1
+      }
+
+    val w = math.pow(0.5, length)
+    val x = math.floor(nxmin / w) * w
+    val y = math.floor(nymin / w) * w
+    val xWidth = w * xSize
+    val yWidth = w * ySize
+    val sc = sequenceCode(nxmin, nymin, length, posCode)
+    val xTrue = x * xSize + xLo
+    val yTrue = y * ySize + yLo
+    val xMaxTrue = (x + w) * xSize + xLo
+    val yMaxTrue = (y + w) * ySize + yLo
+    val xCen = (xTrue + xMaxTrue) / 2.0
+    val yCen = (yTrue + yMaxTrue) / 2.0
+    IndexPar(sc, length, xWidth, yWidth, xTrue, yTrue, xMaxTrue, yMaxTrue, xCen, yCen)
+  }
+
+  case class IndexPar(
+      var sc: Long,
+      var length: Int,
+      var xWidth: Double,
+      var yWidth: Double,
+      var xTrue: Double,
+      var yTrue: Double,
+      var xMaxTrue: Double,
+      var yMaxTrue: Double,
+      var xCen: Double,
+      var yCen: Double
+  )
 
   def signature(x1: Double, y1: Double, x2: Double, y2: Double, traj: Geometry): Long = {
     val remaining = new java.util.ArrayDeque[Element2](math.pow(4, beta).toInt)
@@ -252,7 +290,9 @@ class XZStarSFC(
         // checkValue
         if (next.isContained(queryWindow)) {
           containedQuadCount += 1L
-          val min = next.elementCode + 1L
+          // XZ* 当前节点本身还承载 10 个 position-code 编码（elementCode-9 .. elementCode），
+          // 原先从 elementCode+1 开始会把这些命中对象整段漏掉。
+          val min = next.elementCode - 9L
           val max = next.elementCode + next.IS(level.toInt) - 1L
           ranges.add(IndexRange(min, max, contained = true))
         } else if (next.insertion(queryWindow)) {
@@ -289,29 +329,92 @@ class XZStarSFC(
       }
       result.append(current)
       XZStarSFC.setLastRangeStats(XZStarSFC.RangeStats(containedQuadCount, intersectQuadCount, 0L))
-      RangeStatsBridge.setLast(
-        RangeStatsBridge.Kind.XZ_STAR,
-        containedQuadCount,
-        intersectQuadCount,
-        0L,
-        0L,
-        0L,
-        0L
-      )
       result.asJava
     } else {
       XZStarSFC.setLastRangeStats(XZStarSFC.RangeStats(containedQuadCount, intersectQuadCount, 0L))
-      RangeStatsBridge.setLast(
-        RangeStatsBridge.Kind.XZ_STAR,
-        containedQuadCount,
-        intersectQuadCount,
-        0L,
-        0L,
-        0L,
-        0L
-      )
       ranges
     }
+  }
+
+  def rangesForKnn(searTraj: entity.Trajectory, dis: Double, root: ElementKNN): java.util.List[IndexRange] = {
+    val ranges = new java.util.ArrayList[IndexRange](100)
+    val boundary1 = searTraj.getMultiPoint.getEnvelopeInternal
+    val boundaryEnv = searTraj.getMultiPoint.getEnvelopeInternal
+
+    boundary1.expandBy(dis)
+    val remaining = new java.util.ArrayDeque[ElementKNN](200)
+    val minimumResolution = indexSpace2(boundary1, 0L)
+
+    val levelStop = new ElementKNN(-1, -1, -1, -1, -1, -1, pre, 0L)
+    val seedPoints = Seq(
+      (clampToInterior(boundary1.getMinX, xLo, xHi), clampToInterior(boundary1.getMinY, yLo, yHi)),
+      (clampToInterior(boundary1.getMaxX, xLo, xHi), clampToInterior(boundary1.getMinY, yLo, yHi)),
+      (clampToInterior(boundary1.getMinX, xLo, xHi), clampToInterior(boundary1.getMaxY, yLo, yHi)),
+      (clampToInterior(boundary1.getMaxX, xLo, xHi), clampToInterior(boundary1.getMaxY, yLo, yHi))
+    ).distinct
+    seedPoints.foreach { case (x, y) =>
+      remaining.add(root.search(root, x, y, minimumResolution.length))
+    }
+    remaining.add(levelStop)
+
+    var maximumResolution = minimumResolution.length
+    var currXS = minimumResolution.xWidth * 2
+    var currYS = minimumResolution.yWidth * 2
+    while ((boundaryEnv.getWidth - currXS) / 2.0 < dis
+      && (boundaryEnv.getHeight - currYS) / 2.0 < dis
+      && maximumResolution < g) {
+      maximumResolution += 1
+      currXS /= 2.0
+      currYS /= 2.0
+    }
+
+    val spoint = searTraj.getGeometryN(0)
+    val epoint = searTraj.getGeometryN(searTraj.getNumGeometries - 1)
+    var level = minimumResolution.length
+
+    while (!remaining.isEmpty) {
+      val next = remaining.poll
+      if (next == levelStop && !remaining.isEmpty && level < maximumResolution) {
+        remaining.add(levelStop)
+        level = level + 1
+      } else if (next.neededToCheck(boundaryEnv, dis)) {
+        val candidates = next.checkPositionCode(searTraj, dis, spoint, epoint)
+        if (candidates != null) {
+          ranges.addAll(candidates)
+        }
+        if (level < maximumResolution) {
+          next.getChildren.asScala.foreach(remaining.add)
+        }
+      }
+    }
+
+    if (ranges.size() > 0) {
+      ranges.sort(IndexRange.IndexRangeIsOrdered)
+      var current = ranges.get(0)
+      val result = ArrayBuffer.empty[IndexRange]
+      var i = 1
+      while (i < ranges.size()) {
+        val range = ranges.get(i)
+        if (range.lower <= current.upper + 1) {
+          current = IndexRange(current.lower, math.max(current.upper, range.upper), current.contained && range.contained)
+        } else {
+          result.append(current)
+          current = range
+        }
+        i += 1
+      }
+      result.append(current)
+      result.asJava
+    } else {
+      ranges
+    }
+  }
+
+  private def clampToInterior(value: Double, min: Double, max: Double): Double = {
+    val epsilon = 1e-12
+    if (value <= min) min + epsilon
+    else if (value >= max) max - epsilon
+    else value
   }
 }
 
@@ -331,9 +434,9 @@ object XZStarSFC extends Serializable {
     lastStatsThreadLocal.set(stats)
   }
 
-  def getLastVisitedCellsByContainIntersect(): Long = {
+  def getLastVisitedCellsByContainIntersect: Long = {
     val s = lastStatsThreadLocal.get()
-    if (s == null) 0L else (s.containedQuadCount + s.intersectQuadCount)
+    if (s == null) 0L else s.containedQuadCount + s.intersectQuadCount
   }
 
   def clearLastRangeStats(): Unit = {

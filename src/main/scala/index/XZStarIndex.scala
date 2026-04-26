@@ -10,7 +10,7 @@ import scala.collection.JavaConverters._
  * - 编码：用 XZStarSFC.index(geometry) 直接生成最终 rowkey 的“index(long)”
  * - 查询：用 XZStarSFC.ranges(lng1,lat1,lng2,lat2) 生成 IndexRange，供 QueryPlanner/rangesToRowkey 扫描
  *
- * 满足你的约束：XZ_STAR 固定使用 2*2（在 XZStarSFC 里对应 beta=1），且不参与 tspEncoding 分支。
+ * XZ_STAR 固定使用 2*2，且不参与 tspEncoding 分支。
  */
 class XZStarIndex(
     val g: Short,
