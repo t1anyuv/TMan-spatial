@@ -3,36 +3,27 @@ package loader;
 import config.TableConfig;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import scala.Tuple2;
 import scala.Tuple3;
 
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static client.Constants.DEFAULT_CF;
+import static client.Constants.MAX_SFC;
+import static client.Constants.META_TABLE_BMTREE_BIT_LENGTH;
+import static client.Constants.META_TABLE_BMTREE_CONFIG_PATH;
+import static client.Constants.META_TABLE_IS_BMTREE;
 import static utils.TrajPutUtil.getSpatialIndex;
 import utils.TrajPutUtilWithMaxSFC;
 
-/**
- * BMTree索引加载器
- * <p>
- * 使用BMTree (Binary Multi-dimensional Tree) 索引策略存储轨迹数据
- * <p>
- * 1. 使用统一的getSpatialIndex方法计算索引
- * 2. BMTree返回的索引格式：(level, minSFC, maxSFC)
- * 3. 使用minSFC作为RowKey存储到HBase
- * 4. 不使用Redis统计表
- * 5. 不涉及形状编码和TSP优化
- * 6. BMTree通过MCTS学习得到的树结构文件（best_tree.txt）进行索引计算
- * 
- * @author hehuajun
- */
 public class BMTreeLoader extends Loader {
 
     /**
@@ -73,6 +64,24 @@ public class BMTreeLoader extends Loader {
     }
 
     @Override
+    protected void appendIndexMeta(Put put) {
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_BMTREE), Bytes.toBytes(config.getIsBMTree()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_BMTREE_CONFIG_PATH), Bytes.toBytes(config.getBMTreeConfigPath()));
+        int[] bitLength = config.getBMTreeBitLength();
+        if (bitLength == null || bitLength.length == 0) {
+            return;
+        }
+        StringBuilder bitLengthStr = new StringBuilder();
+        for (int i = 0; i < bitLength.length; i++) {
+            if (i > 0) {
+                bitLengthStr.append(",");
+            }
+            bitLengthStr.append(bitLength[i]);
+        }
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_BMTREE_BIT_LENGTH), Bytes.toBytes(bitLengthStr.toString()));
+    }
+
+    @Override
     void storePrimaryTable() throws IOException {
         SparkConf conf = new SparkConf()
                 .setMaster("local[*]")
@@ -87,6 +96,7 @@ public class BMTreeLoader extends Loader {
 
         try (JavaSparkContext context = new JavaSparkContext(conf)) {
             JavaRDD<String> rawTrajRDD = context.textFile(sourcePath);
+            long trajectoryCount = rawTrajRDD.count();
             
             System.out.println("[BMTreeLoader] 开始构建BMTree索引...");
             
@@ -116,7 +126,7 @@ public class BMTreeLoader extends Loader {
                             long minSFC = (long) indexValue._2();
                             long maxSFC = (long) indexValue._3();
                             
-                            // 使用TrajPutUtilWithMaxsfc构造Put（包含maxSFC列）
+                            // 使用TrajPutUtilWithMaxSFC构造Put
                             Tuple3<Put, Long, List<KeyValue>> putWithIndex = 
                                 TrajPutUtilWithMaxSFC.getPutWithIndex(rawTraj, minSFC, maxSFC, config);
                             
@@ -134,21 +144,25 @@ public class BMTreeLoader extends Loader {
                     System.out.println("[BMTreeLoader] 分区处理完成: 成功=" + processedCount + ", 失败=" + failedCount);
                     
                     return results.iterator();
-                }).repartition(400);  // 增加分区数以提高并行度
+                }).repartition(400).persist(org.apache.spark.storage.StorageLevel.DISK_ONLY());  // 增加分区数以提高并行度
 
+            long mainTableBytes = sumPrimaryTableBytes(indexedRDD);
+            long extraIndexInfoBytes = sumQualifierBytes(indexedRDD, MAX_SFC);
             storePrimaryTableWithHadoopDataset(indexedRDD);
 
             currentTime = System.currentTimeMillis() - currentTime;
-            
-            // 写入索引时间
-            String path = resultPath + "indexing_time_" + tableName;
-            System.out.println("[BMTreeLoader] 索引时间文件路径: " + path);
-            FileWriter writer = new FileWriter(path);
-            writer.write("indexing time: " + currentTime);
-            writer.flush();
-            writer.close();
-            
             System.out.println("[BMTreeLoader] 主表存储完成，耗时: " + currentTime + " ms");
+            StoreSummary summary = new StoreSummary();
+            summary.setTrajectoryCount(trajectoryCount);
+            summary.setNodeCount(resolveNodeCount());
+            summary.setShapeCount(NOT_APPLICABLE);
+            summary.setIndexingTimeMs(currentTime);
+            summary.setMainTableBytes(mainTableBytes);
+            summary.setIndexTableBytes(0L);
+            summary.setExtraIndexInfoBytes(extraIndexInfoBytes);
+            summary.setNote("shape count is not applicable for interval-based BMTree storage");
+            printAndPersistStoreSummary(summary);
+            indexedRDD.unpersist(false);
         }
     }
 }

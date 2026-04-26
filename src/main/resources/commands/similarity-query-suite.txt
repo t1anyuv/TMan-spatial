@@ -1,0 +1,21 @@
+mode: similarity-query
+
+java:
+java -cp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar experiments.app.ExperimentApp similarity-query <config_json_path>
+
+spark-submit:
+spark-submit --class experiments.app.ExperimentApp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar similarity-query <config_json_path>
+
+config fields:
+datasets[].name                   dataset name, e.g. Tdrive
+datasets[].dataFilePath           raw trajectory data file
+datasets[].queryWorkloadPath       similarity/top-k workload file
+methods                           supported: LETI, TSHAPE, XZ*
+queryTypes                        supported: top_k, similarity
+topKValues                        e.g. [50,100,150,200,250]
+similarityThresholds              e.g. [0.001,0.005,0.01,0.015,0.02]
+distanceFunctions                 supported: FRECHET, HAUSDORFF, DTW
+queryLimit                        optional, 0 means all
+topKInitialThreshold              optional, default 0.0
+outputDir                         experiment output directory
+cleanupTablesAfterRun             optional, default true

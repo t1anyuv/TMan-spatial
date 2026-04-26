@@ -36,36 +36,45 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
     }
     val spoint = searTraj.getGeometryN(0)
     val epoint = searTraj.getGeometryN(searTraj.getNumGeometries - 1)
-    var level = minimumResolution.length
+    val expandedWindow = QueryWindow(
+      boundary1.getMinX,
+      boundary1.getMinY,
+      boundary1.getMaxX,
+      boundary1.getMaxY
+    )
+    root.split()
+    root.children.asScala.foreach(remaining.add)
+    var level: Short = 1
     val levelStop = TShapeEE(-1, -1, -1, -1, -1, -1)
-    remaining.add(root.search(root, minimumResolution.xTrue, minimumResolution.yTrue, minimumResolution.length))
-    remaining.add(root.search(root, minimumResolution.xTrue + minimumResolution.xWidth, minimumResolution.yTrue, minimumResolution.length))
-    remaining.add(root.search(root, minimumResolution.xTrue, minimumResolution.yTrue + minimumResolution.yWidth, minimumResolution.length))
-    remaining.add(root.search(root, minimumResolution.xTrue + minimumResolution.xWidth, minimumResolution.yTrue + minimumResolution.yWidth, minimumResolution.length))
     remaining.add(levelStop)
 
     while (!remaining.isEmpty) {
       val next = remaining.poll
-      if (next == levelStop && !remaining.isEmpty && level < maximumResolution) {
-        remaining.add(levelStop)
-        level = level + 1
+      if (next.eq(levelStop)) {
+        if (!remaining.isEmpty && level < maximumResolution) {
+          remaining.add(levelStop)
+          level = (level + 1).toShort
+        }
       } else {
-        if (next.neededToCheck(boundaryEnv, dis)) {
+        if (next.insertion(expandedWindow)) {
+          if (next.level < minimumResolution.length) {
+            next.getChildren.asScala.foreach(remaining.add)
+          } else if (next.neededToCheck(boundaryEnv, dis)) {
           val key = next.elementCode
           if (null == next.shapes) {
             loadQuadShapes(jedis, indexTable, tspEncoding, next, key)
           }
-          if (next.shapes.nonEmpty) {
+          if (next.shapes != null && next.shapes.nonEmpty) {
             val candidates = next.checkPositionCode(searTraj, dis, spoint, epoint)
             if (null != candidates) {
               ranges.addAll(candidates)
             }
           }
-          if (level < maximumResolution) {
-            //next.getChildren.asScala
-            next.getChildren.asScala.foreach(v => {
-              remaining.add(v)
-            })
+            if (level < maximumResolution) {
+              next.getChildren.asScala.foreach(v => {
+                remaining.add(v)
+              })
+            }
           }
         }
       }
@@ -101,7 +110,6 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
   }
 
   def rangesThread(lng1: Double, lat1: Double, lng2: Double, lat2: Double, jedis: Jedis, indexTable: String, tspEncoding: Boolean = false): java.util.List[IndexRange] = {
-    val commonMetricsOnly = java.lang.Boolean.getBoolean("tman.benchmark.commonMetricsOnly")
     val debug = java.lang.Boolean.getBoolean("tman.debug.tshape")
     val debugLimit = 20
 
@@ -327,29 +335,14 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
         redisShapeFilterRateScaled
       )
     )
-    RangeStatsBridge.setLast(
-      RangeStatsBridge.Kind.TSHAPE,
-      containedQuadCount,
-      intersectQuadCount,
-      if (commonMetricsOnly || mergedQuadCode == null) 0L else mergedQuadCode.size().toLong,
-      0L,
-      redisAccessCount,
-      redisShapeFilterRateScaled
-    )
-    if (mergedQuadCode != null) {
-      RangeDebugBridge.setLastTShape(mergedQuadCode)
-    } else {
-      RangeDebugBridge.clearLastTShape()
-    }
     merged
     //    ranges
   }
 
   def ranges(lng1: Double, lat1: Double, lng2: Double, lat2: Double, jedis: Jedis, indexTable: String): java.util.List[IndexRange] = {
-    val commonMetricsOnly = java.lang.Boolean.getBoolean("tman.benchmark.commonMetricsOnly")
     val queryWindow = QueryWindow(lng1, lat1, lng2, lat2)
     val ranges = new java.util.ArrayList[IndexRange](100)
-    val quadCodeRanges = if (commonMetricsOnly) null else new java.util.ArrayList[IndexRange](256)
+    val quadCodeRanges = new java.util.ArrayList[IndexRange](256)
     val checkList = new java.util.ArrayList[(TShapeEE, Short)](300)
     val remaining = new java.util.ArrayDeque[TShapeEE](200)
     val levelStop = TShapeEE(-1, -1, -1, -1, -1, -1)
@@ -449,16 +442,14 @@ class LocSIndex(maxR: Short, xBounds: (Double, Double), yBounds: (Double, Double
     } else {
       quadCodeRanges
     }
-    RangeStatsBridge.setLast(
-      RangeStatsBridge.Kind.TSHAPE,
-      containedQuadCount.toLong,
-      intersectQuadCount.toLong,
-      if (commonMetricsOnly || mergedQuadCode == null) 0L else mergedQuadCode.size().toLong,
-      0L,
-      redisAccessCount,
-      0L
-    )
     ranges
+  }
+
+  private def clampToBounds(value: Double, min: Double, max: Double): Double = {
+    val epsilon = 1e-12
+    if (value <= min) min + epsilon
+    else if (value >= max) max - epsilon
+    else value
   }
 
 

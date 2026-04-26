@@ -1,0 +1,6 @@
+java -cp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar experiments.standalone.query.TopKQuery <table> <query_traj_file> <k> <distance_func> <result_csv> [interval]
+
+distance_func:
+0  Frechet
+1  Hausdorff
+2  DTW

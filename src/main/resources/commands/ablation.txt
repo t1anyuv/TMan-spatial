@@ -1,0 +1,12 @@
+mode: ablation
+
+java:
+java -cp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar experiments.app.ExperimentApp ablation <query_base_dir> <data_file_path> <output_dir>
+
+spark-submit:
+spark-submit --class experiments.app.ExperimentApp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar ablation <query_base_dir> <data_file_path> <output_dir>
+
+arguments:
+<query_base_dir>  query root directory
+<data_file_path>  raw trajectory data file
+<output_dir>      experiment output directory

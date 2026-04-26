@@ -1,0 +1,29 @@
+mode: bmtree-learn
+
+roles:
+BMTreeLearningExperimentRunner -> experiment entry
+BMTreeConfigLearner            -> config learner
+BMTreeOrderFileBuilder         -> order-file builder
+
+java:
+java -cp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar experiments.app.ExperimentApp bmtree-learn <sample_data_path> <query_workload_path> <config_output_path> <order_output_path> [base_order_path] [bit_length] [max_depth] [trajectory_sample_limit] [query_sample_limit] [page_size] [min_node_size] [seed]
+
+spark-submit:
+spark-submit --class experiments.app.ExperimentApp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar bmtree-learn <sample_data_path> <query_workload_path> <config_output_path> <order_output_path> [base_order_path] [bit_length] [max_depth] [trajectory_sample_limit] [query_sample_limit] [page_size] [min_node_size] [seed]
+
+template:
+bmtree-learn <sample_data_path> <query_workload_path> <config_output_path> <order_output_path> [base_order_path] [bit_length] [max_depth] [trajectory_sample_limit] [query_sample_limit] [page_size] [min_node_size] [seed]
+
+arguments:
+<sample_data_path>         raw trajectory data file used for BMTree learning
+<query_workload_path>      real query workload file
+<config_output_path>       learned BMTree config output path
+<order_output_path>        learned BMTree LETI-order output path
+[base_order_path]          LETI base order, default leti/<dataset>/param/skewed_r8_min4_a3_b3.json
+[bit_length]               per-dimension bit length, default 20,20
+[max_depth]                BMTree max depth, default 8
+[trajectory_sample_limit]  sampled trajectory count, default 4000
+[query_sample_limit]       sampled workload query count, default 300
+[page_size]                page size used in scan-range scoring, default 64
+[min_node_size]            minimum sampled trajectories required to keep splitting, default 32
+[seed]                     random seed, default 20260421

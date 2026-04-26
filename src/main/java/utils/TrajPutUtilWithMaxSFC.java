@@ -26,7 +26,7 @@ public class TrajPutUtilWithMaxSFC extends TrajPutUtil implements Serializable {
 
 
     /**
-     * 构造 Put 操作（LMSFC 专用，包含 maxSFC）
+     * 构造 Put 操作
      * <p>
      * 使用 LMSFC 索引值构造 RowKey 并生成 Put 操作。
      * RowKey 格式：[minSFC(8字节)][tid]，可选分片前缀
@@ -43,13 +43,13 @@ public class TrajPutUtilWithMaxSFC extends TrajPutUtil implements Serializable {
      * @throws ParseException WKT 解析异常
      */
     public static Tuple3<Put, Long, List<KeyValue>> getPutWithIndex(
-            String traj, 
-            long minSFC, 
-            long maxSFC, 
+            String traj,
+            long minSFC,
+            long maxSFC,
             TableConfig config) throws ParseException {
 
-        String[] t = traj.split("-");
-        String tid = t[1];
+        TrajectoryParser.ParsedTrajectory pt = TrajectoryParser.parse(traj);
+        String tid = pt.tid;
         tid = tid + (int) (Math.random() * 20);
         byte[] rowkey = buildRowkey(minSFC, tid, config);
 

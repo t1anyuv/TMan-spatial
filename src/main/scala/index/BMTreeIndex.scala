@@ -3,48 +3,51 @@ package index
 import com.esri.core.geometry._
 import org.locationtech.sfcurve.IndexRange
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
 import scala.annotation.tailrec
 import scala.io.Source
 
 /**
  * BMTree节点
- * 
- * @param nodeId      节点ID
- * @param parentId    父节点ID（-1表示根节点）
- * @param depth       节点深度
- * @param chosenBit   选择的bit维度（0=x, 1=y, -1表示叶子节点）
- * @param leftChild   左子节点ID（-1表示无）
- * @param rightChild  右子节点ID（-1表示无）
- * @param child       非分割子节点ID（-1表示无）
+ *
+ * @param nodeId     节点ID
+ * @param parentId   父节点ID（-1表示根节点）
+ * @param depth      节点深度
+ * @param chosenBit  选择的bit维度（0=x, 1=y, -1表示叶子节点）
+ * @param leftChild  左子节点ID（-1表示无）
+ * @param rightChild 右子节点ID（-1表示无）
+ * @param child      非分割子节点ID（-1表示无）
  */
 case class BMTreeNode(
-  nodeId: Int,
-  parentId: Int,
-  depth: Int,
-  chosenBit: Int,
-  leftChild: Int,
-  rightChild: Int,
-  child: Int
+                       nodeId: Int,
+                       parentId: Int,
+                       depth: Int,
+                       chosenBit: Int,
+                       leftChild: Int,
+                       rightChild: Int,
+                       child: Int
 )
 
 /**
  * BMTree (Binary Multi-dimensional Tree) 索引实现
- * 
+ *
  * BMTree是一种自适应的空间填充曲线，通过MCTS学习得到最优的bit选择策略
- * 
- * @param maxR              最大分辨率（兼容XZSFC基类）
- * @param xBounds           x轴边界 (min, max)
- * @param yBounds           y轴边界 (min, max)
- * @param bmtreeConfigPath  BMTree配置文件路径（best_tree.txt）
- * @param bitLength         每个维度的bit长度数组，例如 Array(20, 20)
+ *
+ * @param maxR             最大分辨率（兼容XZSFC基类）
+ * @param xBounds          x轴边界 (min, max)
+ * @param yBounds          y轴边界 (min, max)
+ * @param bmtreeConfigPath BMTree配置文件路径（best_tree.txt）
+ * @param bitLength        每个维度的bit长度数组，例如 Array(20, 20)
  */
 class BMTreeIndex(
-  maxR: Short,
-  xBounds: (Double, Double),
-  yBounds: (Double, Double),
-  bmtreeConfigPath: String,
-  bitLength: Array[Int]
-) extends XZSFC(maxR, xBounds, yBounds, 2, 2) with Serializable {
+                   maxR: Short,
+                   xBounds: (Double, Double),
+                   yBounds: (Double, Double),
+                   bmtreeConfigPath: String,
+                   bitLength: Array[Int]
+                 ) extends XZSFC(maxR, xBounds, yBounds, 2, 2)
+  with Serializable {
 
   // 空间边界
   private val xLo = xBounds._1
@@ -67,7 +70,7 @@ class BMTreeIndex(
 
   /**
    * 从配置文件加载BMTree结构
-   * 
+   *
    * 文件格式：
    * 第1行：维度数 bit_length[0] bit_length[1] ...
    * 第2行：max_depth
@@ -76,13 +79,25 @@ class BMTreeIndex(
   private def loadBMTree(path: String): Array[BMTreeNode] = {
     try {
       // 尝试从类路径加载
-      val stream = getClass.getClassLoader.getResourceAsStream(path)
-      if (stream == null) {
+      val localPath = Paths.get(path)
+      val stream =
+        if (Files.exists(localPath)) null
+        else getClass.getClassLoader.getResourceAsStream(path)
+      if (stream == null && !Files.exists(localPath)) {
         throw new IllegalArgumentException(s"BMTree配置文件未找到: $path")
       }
 
-      val lines = Source.fromInputStream(stream).getLines().toList
-      stream.close()
+      val lines =
+        if (Files.exists(localPath)) {
+          import scala.collection.JavaConverters._
+          Files.readAllLines(localPath, StandardCharsets.UTF_8).asScala.toList
+        } else {
+          try {
+            Source.fromInputStream(stream, "UTF-8").getLines().toList
+          } finally {
+            stream.close()
+          }
+        }
 
       if (lines.length < 3) {
         throw new IllegalArgumentException(s"BMTree配置文件格式错误: 行数不足")
@@ -97,7 +112,7 @@ class BMTreeIndex(
       if (!fileBitLength.sameElements(bitLength)) {
         throw new IllegalArgumentException(
           s"BMTree配置文件的bit_length ${fileBitLength.mkString(",")} " +
-          s"与配置不匹配 ${bitLength.mkString(",")}"
+            s"与配置不匹配 ${bitLength.mkString(",")}"
         )
       }
 
@@ -135,7 +150,7 @@ class BMTreeIndex(
 
   /**
    * 将整数转换为二进制bit数组（LSB first）
-   * 
+   *
    * @param value  整数值
    * @param length bit长度
    * @return bit数组，索引0是最低位
@@ -152,7 +167,7 @@ class BMTreeIndex(
 
   /**
    * 计算从根节点到当前节点路径上，指定维度已使用的bit数
-   * 
+   *
    * @param node 当前节点
    * @param dim  维度（0=x, 1=y）
    * @return 已使用的bit数
@@ -175,18 +190,18 @@ class BMTreeIndex(
   /**
    * 使用Z-order填充剩余bit
    * 当到达叶子节点或非完全分割节点时，使用Z-order填充剩余的bit
-   * 
-   * @param xBits       x维度的bit数组（LSB first存储）
-   * @param yBits       y维度的bit数组（LSB first存储）
-   * @param value       当前累积的SFC值
-   * @param node        当前节点
+   *
+   * @param xBits x维度的bit数组（LSB first存储）
+   * @param yBits y维度的bit数组（LSB first存储）
+   * @param value 当前累积的SFC值
+   * @param node  当前节点
    * @return 最终的SFC值
    */
   private def fillWithZOrder(
-    xBits: Array[Int],
-    yBits: Array[Int],
-    value: Long,
-    node: BMTreeNode
+                              xBits: Array[Int],
+                              yBits: Array[Int],
+                              value: Long,
+                              node: BMTreeNode
   ): Long = {
     var result = value
     val xUsed = countBitsUsed(node, 0)
@@ -212,7 +227,7 @@ class BMTreeIndex(
 
   /**
    * 递归计算SFC值（遍历BMTree）
-   * 
+   *
    * @param xBits       x维度的bit数组（LSB first存储）
    * @param yBits       y维度的bit数组（LSB first存储）
    * @param node        当前节点
@@ -221,10 +236,10 @@ class BMTreeIndex(
    */
   @tailrec
   private def computeSFC(
-    xBits: Array[Int],
-    yBits: Array[Int],
-    node: BMTreeNode,
-    parentValue: Long
+                          xBits: Array[Int],
+                          yBits: Array[Int],
+                          node: BMTreeNode,
+                          parentValue: Long
   ): Long = {
     // 叶子节点：使用Z-order填充剩余bit
     if (node.chosenBit == -1) {
@@ -232,16 +247,16 @@ class BMTreeIndex(
     }
 
     // 获取当前节点选择的bit
-    val chosenDim = node.chosenBit  // 0=x, 1=y
+    val chosenDim = node.chosenBit // 0=x, 1=y
     val bitsUsed = countBitsUsed(node, chosenDim)
-    
+
     // 从MSB（高位）开始访问，保证单调性
     val bitIndex = if (chosenDim == 0) {
       bitLength(0) - 1 - bitsUsed
     } else {
       bitLength(1) - 1 - bitsUsed
     }
-    
+
     // 获取对应维度的bit值
     val bitValue = if (chosenDim == 0) {
       if (bitIndex >= 0 && bitIndex < xBits.length) xBits(bitIndex) else 0
@@ -299,15 +314,7 @@ class BMTreeIndex(
     (0, minSFC, maxSFC)
   }
 
-  /**
-   * 基础范围查询（从0开始，保证不漏检）
-   */
-  def ranges(
-    lng1: Double,
-    lat1: Double,
-    lng2: Double,
-    lat2: Double
-  ): java.util.List[IndexRange] = {
+  def ranges(lng1: Double, lat1: Double, lng2: Double, lat2: Double): java.util.List[IndexRange] = {
     // 归一化到网格坐标
     val qMinX = normalizeToGrid(lng1, xLo, xHi)
     val qMinY = normalizeToGrid(lat1, yLo, yHi)
@@ -315,10 +322,14 @@ class BMTreeIndex(
     val qMaxY = normalizeToGrid(lat2, yLo, yHi)
 
     // 计算4个角的SFC值
-    val sfc_LL = computeSFC(toBinary(qMinX, bitLength(0)), toBinary(qMinY, bitLength(1)), rootNode, 0L)  // 左下
-    val sfc_LR = computeSFC(toBinary(qMaxX, bitLength(0)), toBinary(qMinY, bitLength(1)), rootNode, 0L)  // 右下
-    val sfc_UL = computeSFC(toBinary(qMinX, bitLength(0)), toBinary(qMaxY, bitLength(1)), rootNode, 0L)  // 左上
-    val sfc_UR = computeSFC(toBinary(qMaxX, bitLength(0)), toBinary(qMaxY, bitLength(1)), rootNode, 0L)  // 右上
+    val sfc_LL =
+      computeSFC(toBinary(qMinX, bitLength(0)), toBinary(qMinY, bitLength(1)), rootNode, 0L) // 左下
+    val sfc_LR =
+      computeSFC(toBinary(qMaxX, bitLength(0)), toBinary(qMinY, bitLength(1)), rootNode, 0L) // 右下
+    val sfc_UL =
+      computeSFC(toBinary(qMinX, bitLength(0)), toBinary(qMaxY, bitLength(1)), rootNode, 0L) // 左上
+    val sfc_UR =
+      computeSFC(toBinary(qMaxX, bitLength(0)), toBinary(qMaxY, bitLength(1)), rootNode, 0L) // 右上
 
     val maxSFC = math.max(math.max(sfc_LL, sfc_LR), math.max(sfc_UL, sfc_UR))
 
@@ -326,6 +337,24 @@ class BMTreeIndex(
     ranges.add(IndexRange(0, maxSFC, contained = false))
     ranges
   }
+
+  /**
+   * 基础范围查询
+   */
+  //  def ranges(
+  //    lng1: Double,
+  //    lat1: Double,
+  //    lng2: Double,
+  //    lat2: Double
+  //  ): java.util.List[IndexRange] = {
+  //    val maxX = (1 << bitLength(0)) - 1
+  //    val maxY = (1 << bitLength(1)) - 1
+  //    val maxSFC = computeSFC(toBinary(maxX, bitLength(0)), toBinary(maxY, bitLength(1)), rootNode, 0L)
+  //
+  //    val ranges = new java.util.ArrayList[IndexRange]()
+  //    ranges.add(IndexRange(0, maxSFC, contained = false))
+  //    ranges
+  //  }
 }
 
 object BMTreeIndex extends Serializable {
@@ -335,11 +364,11 @@ object BMTreeIndex extends Serializable {
   ]()
 
   def apply(
-    g: Short,
-    xBounds: (Double, Double),
-    yBounds: (Double, Double),
-    bmtreeConfigPath: String,
-    bitLength: Array[Int]
+             g: Short,
+             xBounds: (Double, Double),
+             yBounds: (Double, Double),
+             bmtreeConfigPath: String,
+             bitLength: Array[Int]
   ): BMTreeIndex = {
     val bitLengthStr = bitLength.mkString(",")
     val key = ("", g, xBounds, yBounds, bmtreeConfigPath, bitLengthStr)
@@ -352,12 +381,12 @@ object BMTreeIndex extends Serializable {
   }
 
   def apply(
-    table: String,
-    g: Short,
-    xBounds: (Double, Double),
-    yBounds: (Double, Double),
-    bmtreeConfigPath: String,
-    bitLength: Array[Int]
+             table: String,
+             g: Short,
+             xBounds: (Double, Double),
+             yBounds: (Double, Double),
+             bmtreeConfigPath: String,
+             bitLength: Array[Int]
   ): BMTreeIndex = {
     val bitLengthStr = bitLength.mkString(",")
     val key = (table, g, xBounds, yBounds, bmtreeConfigPath, bitLengthStr)

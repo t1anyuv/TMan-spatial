@@ -1,0 +1,10 @@
+mode: comparison
+
+java:
+java -cp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar experiments.app.ExperimentApp comparison <config_json_path>
+
+spark-submit:
+spark-submit --class experiments.app.ExperimentApp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar comparison <config_json_path>
+
+arguments:
+<config_json_path>  comparison experiment config json, default src/main/resources/benchmark/comparison-config.sample.json

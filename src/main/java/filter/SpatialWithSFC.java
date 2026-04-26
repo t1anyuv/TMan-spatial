@@ -1,56 +1,46 @@
 package filter;
 
 import client.Constants;
-import com.esri.core.geometry.*;
+import com.esri.core.geometry.Envelope2D;
 import config.TableConfig;
-import index.LMSFCIndex;
 import index.BMTreeIndex;
-import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellUtil;
+import index.LMSFCIndex;
+import lombok.Getter;
+import org.apache.hadoop.hbase.CompareOperator;
+import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.locationtech.sfcurve.IndexRange;
 import scala.Tuple2;
 
 import java.util.List;
 
+@Getter
 public class SpatialWithSFC extends SpatialFilter {
     private final long queryMinSFC;
 
-    public SpatialWithSFC(String geom, String operationType, String compressType, 
-                          long queryMinSFC) {
+    public SpatialWithSFC(String geom, String operationType, String compressType, long queryMinSFC) {
         super(geom, operationType, compressType);
         this.queryMinSFC = queryMinSFC;
     }
 
-    public SpatialWithSFC(String geom, String compressType,
-                              long queryMinSFC) {
+    public SpatialWithSFC(String geom, String compressType, long queryMinSFC) {
         super(geom, compressType);
         this.queryMinSFC = queryMinSFC;
     }
 
-    @Override
-    protected ReturnCode filterCellBefore(Cell c) {
-        String qualifier = Bytes.toString(CellUtil.cloneQualifier(c));
-
-        if (!this.filterRow && qualifier.equals(Constants.MAX_SFC)) {
-            boolean foundMaxSFC = true;
-            long maxSFC = Bytes.toLong(CellUtil.cloneValue(c));
-            if (maxSFC < queryMinSFC) {
-                this.filterRow = true;
-                return ReturnCode.NEXT_ROW;
-            }
-        }
-
-        return null; 
+    public Filter createMaxSFCFilter() {
+        SingleColumnValueFilter filter = new SingleColumnValueFilter(
+                Bytes.toBytes(Constants.DEFAULT_CF),
+                Bytes.toBytes(Constants.MAX_SFC),
+                CompareOperator.GREATER_OR_EQUAL,
+                Bytes.toBytes(queryMinSFC)
+        );
+        filter.setFilterIfMissing(true);
+        filter.setLatestVersionOnly(true);
+        return filter;
     }
 
-    /**
-     * 获取 LMSFC 索引的范围
-     * 
-     * @param tableName 表名
-     * @param config 表配置
-     * @return 索引范围列表
-     */
     public List<IndexRange> getLMSFCRanges(String tableName, TableConfig config) {
         Envelope2D envelope = new Envelope2D();
         this.geometry.queryEnvelope2D(envelope);
@@ -70,16 +60,9 @@ public class SpatialWithSFC extends SpatialFilter {
                     config.getThetaConfig());
         }
 
-        return lmsfcIndex.rangesWithSplit(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax, 3);
+        return lmsfcIndex.ranges(envelope.xmin, envelope.ymin, envelope.xmax, envelope.ymax);
     }
 
-    /**
-     * 获取 BMTree 索引的范围
-     * 
-     * @param tableName 表名
-     * @param config 表配置
-     * @return 索引范围列表
-     */
     public List<IndexRange> getBMTreeRanges(String tableName, TableConfig config) {
         Envelope2D envelope = new Envelope2D();
         this.geometry.queryEnvelope2D(envelope);

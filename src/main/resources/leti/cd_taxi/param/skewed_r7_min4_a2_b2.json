@@ -1,0 +1,5899 @@
+{
+  "ordering": [
+    {
+      "quad_code": 0,
+      "order": 0,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 0,
+        "element_code": 0,
+        "xmin": 104.04,
+        "ymin": 30.65,
+        "xmax": 104.14,
+        "ymax": 30.74
+      },
+      "coverage": {
+        "effective_subtree_count": 344
+      }
+    },
+    {
+      "quad_code": 1,
+      "order": 1,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 1,
+        "element_code": 1,
+        "xmin": 104.04,
+        "ymin": 30.65,
+        "xmax": 104.09,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 176
+      }
+    },
+    {
+      "quad_code": 2,
+      "order": 2,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 2,
+        "element_code": 2,
+        "xmin": 104.04,
+        "ymin": 30.65,
+        "xmax": 104.065,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 48
+      }
+    },
+    {
+      "quad_code": 3,
+      "order": 3,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 3,
+        "xmin": 104.04,
+        "ymin": 30.65,
+        "xmax": 104.05250000000001,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 11
+      }
+    },
+    {
+      "quad_code": 4,
+      "order": 4,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 4,
+        "xmin": 104.04,
+        "ymin": 30.65,
+        "xmax": 104.04625000000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 47,
+      "order": 5,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 47,
+        "xmin": 104.04,
+        "ymin": 30.6528125,
+        "xmax": 104.043125,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 68,
+      "order": 6,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 68,
+        "xmin": 104.043125,
+        "ymin": 30.6528125,
+        "xmax": 104.04625000000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 89,
+      "order": 7,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 89,
+        "xmin": 104.04625000000001,
+        "ymin": 30.65,
+        "xmax": 104.05250000000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 132,
+      "order": 8,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 132,
+        "xmin": 104.04625000000001,
+        "ymin": 30.6528125,
+        "xmax": 104.04937500000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 153,
+      "order": 9,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 153,
+        "xmin": 104.04937500000001,
+        "ymin": 30.6528125,
+        "xmax": 104.05250000000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 174,
+      "order": 10,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 174,
+        "xmin": 104.04,
+        "ymin": 30.655625,
+        "xmax": 104.04625000000001,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 175,
+      "order": 11,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 175,
+        "xmin": 104.04,
+        "ymin": 30.655625,
+        "xmax": 104.043125,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 259,
+      "order": 12,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 259,
+        "xmin": 104.04625000000001,
+        "ymin": 30.655625,
+        "xmax": 104.05250000000001,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 281,
+      "order": 13,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 281,
+        "xmin": 104.04937500000001,
+        "ymin": 30.655625,
+        "xmax": 104.05250000000001,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 323,
+      "order": 14,
+      "parent": {
+        "alpha": 4,
+        "beta": 2,
+        "level": 5,
+        "element_code": 323,
+        "xmin": 104.04937500000001,
+        "ymin": 30.658437499999998,
+        "xmax": 104.05250000000001,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 344,
+      "order": 15,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 344,
+        "xmin": 104.05250000000001,
+        "ymin": 30.65,
+        "xmax": 104.065,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 13
+      }
+    },
+    {
+      "quad_code": 345,
+      "order": 16,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 345,
+        "xmin": 104.05250000000001,
+        "ymin": 30.65,
+        "xmax": 104.05875,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 388,
+      "order": 17,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 388,
+        "xmin": 104.05250000000001,
+        "ymin": 30.6528125,
+        "xmax": 104.055625,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 409,
+      "order": 18,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 409,
+        "xmin": 104.055625,
+        "ymin": 30.6528125,
+        "xmax": 104.05875,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 430,
+      "order": 19,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 430,
+        "xmin": 104.05875,
+        "ymin": 30.65,
+        "xmax": 104.065,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 473,
+      "order": 20,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 473,
+        "xmin": 104.05875,
+        "ymin": 30.6528125,
+        "xmax": 104.061875,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 479,
+      "order": 21,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 479,
+        "xmin": 104.06031250000001,
+        "ymin": 30.6528125,
+        "xmax": 104.061875,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 494,
+      "order": 22,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 494,
+        "xmin": 104.061875,
+        "ymin": 30.6528125,
+        "xmax": 104.065,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 515,
+      "order": 23,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 515,
+        "xmin": 104.05250000000001,
+        "ymin": 30.655625,
+        "xmax": 104.05875,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 516,
+      "order": 24,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 516,
+        "xmin": 104.05250000000001,
+        "ymin": 30.655625,
+        "xmax": 104.055625,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 558,
+      "order": 25,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 558,
+        "xmin": 104.05250000000001,
+        "ymin": 30.658437499999998,
+        "xmax": 104.055625,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 579,
+      "order": 26,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 579,
+        "xmin": 104.055625,
+        "ymin": 30.658437499999998,
+        "xmax": 104.05875,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 590,
+      "order": 27,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 6,
+        "element_code": 590,
+        "xmin": 104.055625,
+        "ymin": 30.65984375,
+        "xmax": 104.0571875,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 600,
+      "order": 28,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 600,
+        "xmin": 104.05875,
+        "ymin": 30.655625,
+        "xmax": 104.065,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 685,
+      "order": 29,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 685,
+        "xmin": 104.04,
+        "ymin": 30.66125,
+        "xmax": 104.05250000000001,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 12
+      }
+    },
+    {
+      "quad_code": 686,
+      "order": 30,
+      "parent": {
+        "alpha": 2,
+        "beta": 5,
+        "level": 4,
+        "element_code": 686,
+        "xmin": 104.04,
+        "ymin": 30.66125,
+        "xmax": 104.04625000000001,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 687,
+      "order": 31,
+      "parent": {
+        "alpha": 4,
+        "beta": 2,
+        "level": 5,
+        "element_code": 687,
+        "xmin": 104.04,
+        "ymin": 30.66125,
+        "xmax": 104.043125,
+        "ymax": 30.6640625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 708,
+      "order": 32,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 708,
+        "xmin": 104.043125,
+        "ymin": 30.66125,
+        "xmax": 104.04625000000001,
+        "ymax": 30.6640625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 735,
+      "order": 33,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 6,
+        "element_code": 735,
+        "xmin": 104.0415625,
+        "ymin": 30.6640625,
+        "xmax": 104.043125,
+        "ymax": 30.66546875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 771,
+      "order": 34,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 771,
+        "xmin": 104.04625000000001,
+        "ymin": 30.66125,
+        "xmax": 104.05250000000001,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 778,
+      "order": 35,
+      "parent": {
+        "alpha": 5,
+        "beta": 2,
+        "level": 6,
+        "element_code": 778,
+        "xmin": 104.04781250000002,
+        "ymin": 30.66125,
+        "xmax": 104.04937500000001,
+        "ymax": 30.662656249999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 814,
+      "order": 36,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 814,
+        "xmin": 104.04625000000001,
+        "ymin": 30.6640625,
+        "xmax": 104.04937500000001,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 835,
+      "order": 37,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 835,
+        "xmin": 104.04937500000001,
+        "ymin": 30.6640625,
+        "xmax": 104.05250000000001,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 856,
+      "order": 38,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 856,
+        "xmin": 104.04,
+        "ymin": 30.666874999999997,
+        "xmax": 104.04625000000001,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 941,
+      "order": 39,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 941,
+        "xmin": 104.04625000000001,
+        "ymin": 30.666874999999997,
+        "xmax": 104.05250000000001,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 942,
+      "order": 40,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 942,
+        "xmin": 104.04625000000001,
+        "ymin": 30.666874999999997,
+        "xmax": 104.04937500000001,
+        "ymax": 30.6696875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 963,
+      "order": 41,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 963,
+        "xmin": 104.04937500000001,
+        "ymin": 30.666874999999997,
+        "xmax": 104.05250000000001,
+        "ymax": 30.6696875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1026,
+      "order": 42,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 1026,
+        "xmin": 104.05250000000001,
+        "ymin": 30.66125,
+        "xmax": 104.065,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 8
+      }
+    },
+    {
+      "quad_code": 1027,
+      "order": 43,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 1027,
+        "xmin": 104.05250000000001,
+        "ymin": 30.66125,
+        "xmax": 104.05875,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 1050,
+      "order": 44,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 6,
+        "element_code": 1050,
+        "xmin": 104.055625,
+        "ymin": 30.66125,
+        "xmax": 104.0571875,
+        "ymax": 30.662656249999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1060,
+      "order": 45,
+      "parent": {
+        "alpha": 2,
+        "beta": 6,
+        "level": 6,
+        "element_code": 1060,
+        "xmin": 104.055625,
+        "ymin": 30.662656249999998,
+        "xmax": 104.0571875,
+        "ymax": 30.6640625
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 1061,
+      "order": 46,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 7,
+        "element_code": 1061,
+        "xmin": 104.055625,
+        "ymin": 30.662656249999998,
+        "xmax": 104.05640625000001,
+        "ymax": 30.663359375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1112,
+      "order": 47,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 1112,
+        "xmin": 104.05875,
+        "ymin": 30.66125,
+        "xmax": 104.065,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1197,
+      "order": 48,
+      "parent": {
+        "alpha": 5,
+        "beta": 2,
+        "level": 4,
+        "element_code": 1197,
+        "xmin": 104.05250000000001,
+        "ymin": 30.666874999999997,
+        "xmax": 104.05875,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1282,
+      "order": 49,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 1282,
+        "xmin": 104.05875,
+        "ymin": 30.666874999999997,
+        "xmax": 104.065,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 1304,
+      "order": 50,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 1304,
+        "xmin": 104.061875,
+        "ymin": 30.666874999999997,
+        "xmax": 104.065,
+        "ymax": 30.6696875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1367,
+      "order": 51,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 2,
+        "element_code": 1367,
+        "xmin": 104.065,
+        "ymin": 30.65,
+        "xmax": 104.09,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 62
+      }
+    },
+    {
+      "quad_code": 1368,
+      "order": 52,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 1368,
+        "xmin": 104.065,
+        "ymin": 30.65,
+        "xmax": 104.0775,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 23
+      }
+    },
+    {
+      "quad_code": 1369,
+      "order": 53,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 1369,
+        "xmin": 104.065,
+        "ymin": 30.65,
+        "xmax": 104.07124999999999,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 5
+      }
+    },
+    {
+      "quad_code": 1412,
+      "order": 54,
+      "parent": {
+        "alpha": 4,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1412,
+        "xmin": 104.065,
+        "ymin": 30.6528125,
+        "xmax": 104.068125,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 1413,
+      "order": 55,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1413,
+        "xmin": 104.065,
+        "ymin": 30.6528125,
+        "xmax": 104.0665625,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1433,
+      "order": 56,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1433,
+        "xmin": 104.068125,
+        "ymin": 30.6528125,
+        "xmax": 104.07124999999999,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 1434,
+      "order": 57,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1434,
+        "xmin": 104.068125,
+        "ymin": 30.6528125,
+        "xmax": 104.06968749999999,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1439,
+      "order": 58,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1439,
+        "xmin": 104.06968749999999,
+        "ymin": 30.6528125,
+        "xmax": 104.07124999999999,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1454,
+      "order": 59,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 1454,
+        "xmin": 104.07124999999999,
+        "ymin": 30.65,
+        "xmax": 104.0775,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 7
+      }
+    },
+    {
+      "quad_code": 1497,
+      "order": 60,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1497,
+        "xmin": 104.07124999999999,
+        "ymin": 30.6528125,
+        "xmax": 104.074375,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 1498,
+      "order": 61,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1498,
+        "xmin": 104.07124999999999,
+        "ymin": 30.6528125,
+        "xmax": 104.0728125,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1508,
+      "order": 62,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 6,
+        "element_code": 1508,
+        "xmin": 104.07124999999999,
+        "ymin": 30.65421875,
+        "xmax": 104.0728125,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1518,
+      "order": 63,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1518,
+        "xmin": 104.074375,
+        "ymin": 30.6528125,
+        "xmax": 104.0775,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 1519,
+      "order": 64,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 6,
+        "element_code": 1519,
+        "xmin": 104.074375,
+        "ymin": 30.6528125,
+        "xmax": 104.07593750000001,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1524,
+      "order": 65,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1524,
+        "xmin": 104.07593750000001,
+        "ymin": 30.6528125,
+        "xmax": 104.0775,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 1525,
+      "order": 66,
+      "parent": {
+        "alpha": 4,
+        "beta": 2,
+        "level": 7,
+        "element_code": 1525,
+        "xmin": 104.07593750000001,
+        "ymin": 30.6528125,
+        "xmax": 104.07671875,
+        "ymax": 30.653515624999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1539,
+      "order": 67,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 1539,
+        "xmin": 104.065,
+        "ymin": 30.655625,
+        "xmax": 104.07124999999999,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 1561,
+      "order": 68,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1561,
+        "xmin": 104.068125,
+        "ymin": 30.655625,
+        "xmax": 104.07124999999999,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 1567,
+      "order": 69,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1567,
+        "xmin": 104.06968749999999,
+        "ymin": 30.655625,
+        "xmax": 104.07124999999999,
+        "ymax": 30.65703125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1603,
+      "order": 70,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1603,
+        "xmin": 104.068125,
+        "ymin": 30.658437499999998,
+        "xmax": 104.07124999999999,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1624,
+      "order": 71,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 1624,
+        "xmin": 104.07124999999999,
+        "ymin": 30.655625,
+        "xmax": 104.0775,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 1625,
+      "order": 72,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1625,
+        "xmin": 104.07124999999999,
+        "ymin": 30.655625,
+        "xmax": 104.074375,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1646,
+      "order": 73,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1646,
+        "xmin": 104.074375,
+        "ymin": 30.655625,
+        "xmax": 104.0775,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1667,
+      "order": 74,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1667,
+        "xmin": 104.07124999999999,
+        "ymin": 30.658437499999998,
+        "xmax": 104.074375,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1688,
+      "order": 75,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1688,
+        "xmin": 104.074375,
+        "ymin": 30.658437499999998,
+        "xmax": 104.0775,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1709,
+      "order": 76,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 1709,
+        "xmin": 104.0775,
+        "ymin": 30.65,
+        "xmax": 104.09,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 22
+      }
+    },
+    {
+      "quad_code": 1710,
+      "order": 77,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 1710,
+        "xmin": 104.0775,
+        "ymin": 30.65,
+        "xmax": 104.08375000000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 7
+      }
+    },
+    {
+      "quad_code": 1753,
+      "order": 78,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1753,
+        "xmin": 104.0775,
+        "ymin": 30.6528125,
+        "xmax": 104.080625,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 1754,
+      "order": 79,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1754,
+        "xmin": 104.0775,
+        "ymin": 30.6528125,
+        "xmax": 104.07906249999999,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 1756,
+      "order": 80,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 7,
+        "element_code": 1756,
+        "xmin": 104.07828125,
+        "ymin": 30.6528125,
+        "xmax": 104.07906249999999,
+        "ymax": 30.653515624999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1769,
+      "order": 81,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1769,
+        "xmin": 104.07906249999999,
+        "ymin": 30.65421875,
+        "xmax": 104.080625,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1774,
+      "order": 82,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1774,
+        "xmin": 104.080625,
+        "ymin": 30.6528125,
+        "xmax": 104.08375000000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 1775,
+      "order": 83,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1775,
+        "xmin": 104.080625,
+        "ymin": 30.6528125,
+        "xmax": 104.0821875,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 1777,
+      "order": 84,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 7,
+        "element_code": 1777,
+        "xmin": 104.08140625,
+        "ymin": 30.6528125,
+        "xmax": 104.0821875,
+        "ymax": 30.653515624999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1795,
+      "order": 85,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 1795,
+        "xmin": 104.08375000000001,
+        "ymin": 30.65,
+        "xmax": 104.09,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 6
+      }
+    },
+    {
+      "quad_code": 1838,
+      "order": 86,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 5,
+        "element_code": 1838,
+        "xmin": 104.08375000000001,
+        "ymin": 30.6528125,
+        "xmax": 104.086875,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 1844,
+      "order": 87,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1844,
+        "xmin": 104.08531250000001,
+        "ymin": 30.6528125,
+        "xmax": 104.086875,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1859,
+      "order": 88,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1859,
+        "xmin": 104.086875,
+        "ymin": 30.6528125,
+        "xmax": 104.09,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 1860,
+      "order": 89,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1860,
+        "xmin": 104.086875,
+        "ymin": 30.6528125,
+        "xmax": 104.0884375,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1865,
+      "order": 90,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 1865,
+        "xmin": 104.0884375,
+        "ymin": 30.6528125,
+        "xmax": 104.09,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 1867,
+      "order": 91,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 7,
+        "element_code": 1867,
+        "xmin": 104.08921875,
+        "ymin": 30.6528125,
+        "xmax": 104.09,
+        "ymax": 30.653515624999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1880,
+      "order": 92,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 1880,
+        "xmin": 104.0775,
+        "ymin": 30.655625,
+        "xmax": 104.08375000000001,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 1881,
+      "order": 93,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1881,
+        "xmin": 104.0775,
+        "ymin": 30.655625,
+        "xmax": 104.080625,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1902,
+      "order": 94,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 5,
+        "element_code": 1902,
+        "xmin": 104.080625,
+        "ymin": 30.655625,
+        "xmax": 104.08375000000001,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1923,
+      "order": 95,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1923,
+        "xmin": 104.0775,
+        "ymin": 30.658437499999998,
+        "xmax": 104.080625,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1944,
+      "order": 96,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 1944,
+        "xmin": 104.080625,
+        "ymin": 30.658437499999998,
+        "xmax": 104.08375000000001,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 1965,
+      "order": 97,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 1965,
+        "xmin": 104.08375000000001,
+        "ymin": 30.655625,
+        "xmax": 104.09,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 2008,
+      "order": 98,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 2008,
+        "xmin": 104.08375000000001,
+        "ymin": 30.658437499999998,
+        "xmax": 104.086875,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2050,
+      "order": 99,
+      "parent": {
+        "alpha": 2,
+        "beta": 5,
+        "level": 3,
+        "element_code": 2050,
+        "xmin": 104.065,
+        "ymin": 30.66125,
+        "xmax": 104.0775,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 8
+      }
+    },
+    {
+      "quad_code": 2051,
+      "order": 100,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2051,
+        "xmin": 104.065,
+        "ymin": 30.66125,
+        "xmax": 104.07124999999999,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 2094,
+      "order": 101,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 2094,
+        "xmin": 104.065,
+        "ymin": 30.6640625,
+        "xmax": 104.068125,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2115,
+      "order": 102,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 2115,
+        "xmin": 104.068125,
+        "ymin": 30.6640625,
+        "xmax": 104.07124999999999,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2136,
+      "order": 103,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2136,
+        "xmin": 104.07124999999999,
+        "ymin": 30.66125,
+        "xmax": 104.0775,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 2179,
+      "order": 104,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 2179,
+        "xmin": 104.07124999999999,
+        "ymin": 30.6640625,
+        "xmax": 104.074375,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2221,
+      "order": 105,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2221,
+        "xmin": 104.065,
+        "ymin": 30.666874999999997,
+        "xmax": 104.07124999999999,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 2222,
+      "order": 106,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 2222,
+        "xmin": 104.065,
+        "ymin": 30.666874999999997,
+        "xmax": 104.068125,
+        "ymax": 30.6696875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2306,
+      "order": 107,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2306,
+        "xmin": 104.07124999999999,
+        "ymin": 30.666874999999997,
+        "xmax": 104.0775,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2391,
+      "order": 108,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 3,
+        "element_code": 2391,
+        "xmin": 104.0775,
+        "ymin": 30.66125,
+        "xmax": 104.09,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 5
+      }
+    },
+    {
+      "quad_code": 2392,
+      "order": 109,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2392,
+        "xmin": 104.0775,
+        "ymin": 30.66125,
+        "xmax": 104.08375000000001,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 2393,
+      "order": 110,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 2393,
+        "xmin": 104.0775,
+        "ymin": 30.66125,
+        "xmax": 104.080625,
+        "ymax": 30.6640625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2477,
+      "order": 111,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2477,
+        "xmin": 104.08375000000001,
+        "ymin": 30.66125,
+        "xmax": 104.09,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2562,
+      "order": 112,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2562,
+        "xmin": 104.0775,
+        "ymin": 30.666874999999997,
+        "xmax": 104.08375000000001,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2647,
+      "order": 113,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2647,
+        "xmin": 104.08375000000001,
+        "ymin": 30.666874999999997,
+        "xmax": 104.09,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2732,
+      "order": 114,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 2,
+        "element_code": 2732,
+        "xmin": 104.04,
+        "ymin": 30.6725,
+        "xmax": 104.065,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 28
+      }
+    },
+    {
+      "quad_code": 2733,
+      "order": 115,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 2733,
+        "xmin": 104.04,
+        "ymin": 30.6725,
+        "xmax": 104.05250000000001,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 8
+      }
+    },
+    {
+      "quad_code": 2734,
+      "order": 116,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2734,
+        "xmin": 104.04,
+        "ymin": 30.6725,
+        "xmax": 104.04625000000001,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 2735,
+      "order": 117,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 2735,
+        "xmin": 104.04,
+        "ymin": 30.6725,
+        "xmax": 104.043125,
+        "ymax": 30.6753125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2819,
+      "order": 118,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2819,
+        "xmin": 104.04625000000001,
+        "ymin": 30.6725,
+        "xmax": 104.05250000000001,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2904,
+      "order": 119,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 2904,
+        "xmin": 104.04,
+        "ymin": 30.678125,
+        "xmax": 104.04625000000001,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 2905,
+      "order": 120,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 2905,
+        "xmin": 104.04,
+        "ymin": 30.678125,
+        "xmax": 104.043125,
+        "ymax": 30.6809375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2947,
+      "order": 121,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 2947,
+        "xmin": 104.04,
+        "ymin": 30.6809375,
+        "xmax": 104.043125,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2968,
+      "order": 122,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 2968,
+        "xmin": 104.043125,
+        "ymin": 30.6809375,
+        "xmax": 104.04625000000001,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 2989,
+      "order": 123,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 2989,
+        "xmin": 104.04625000000001,
+        "ymin": 30.678125,
+        "xmax": 104.05250000000001,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3074,
+      "order": 124,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 3074,
+        "xmin": 104.05250000000001,
+        "ymin": 30.6725,
+        "xmax": 104.065,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 3075,
+      "order": 125,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 3075,
+        "xmin": 104.05250000000001,
+        "ymin": 30.6725,
+        "xmax": 104.05875,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 3076,
+      "order": 126,
+      "parent": {
+        "alpha": 2,
+        "beta": 5,
+        "level": 5,
+        "element_code": 3076,
+        "xmin": 104.05250000000001,
+        "ymin": 30.6725,
+        "xmax": 104.055625,
+        "ymax": 30.6753125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3245,
+      "order": 127,
+      "parent": {
+        "alpha": 5,
+        "beta": 2,
+        "level": 4,
+        "element_code": 3245,
+        "xmin": 104.05250000000001,
+        "ymin": 30.678125,
+        "xmax": 104.05875,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3330,
+      "order": 128,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 3330,
+        "xmin": 104.05875,
+        "ymin": 30.678125,
+        "xmax": 104.065,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3415,
+      "order": 129,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 3415,
+        "xmin": 104.04,
+        "ymin": 30.68375,
+        "xmax": 104.05250000000001,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 9
+      }
+    },
+    {
+      "quad_code": 3416,
+      "order": 130,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 3416,
+        "xmin": 104.04,
+        "ymin": 30.68375,
+        "xmax": 104.04625000000001,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 3433,
+      "order": 131,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 3433,
+        "xmin": 104.0415625,
+        "ymin": 30.68515625,
+        "xmax": 104.043125,
+        "ymax": 30.6865625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3459,
+      "order": 132,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 3459,
+        "xmin": 104.04,
+        "ymin": 30.6865625,
+        "xmax": 104.043125,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3501,
+      "order": 133,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 3501,
+        "xmin": 104.04625000000001,
+        "ymin": 30.68375,
+        "xmax": 104.05250000000001,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3586,
+      "order": 134,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 3586,
+        "xmin": 104.04,
+        "ymin": 30.689375,
+        "xmax": 104.04625000000001,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 3587,
+      "order": 135,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 3587,
+        "xmin": 104.04,
+        "ymin": 30.689375,
+        "xmax": 104.043125,
+        "ymax": 30.6921875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3629,
+      "order": 136,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 3629,
+        "xmin": 104.04,
+        "ymin": 30.6921875,
+        "xmax": 104.043125,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 3635,
+      "order": 137,
+      "parent": {
+        "alpha": 5,
+        "beta": 2,
+        "level": 6,
+        "element_code": 3635,
+        "xmin": 104.0415625,
+        "ymin": 30.6921875,
+        "xmax": 104.043125,
+        "ymax": 30.693593749999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3671,
+      "order": 138,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 3671,
+        "xmin": 104.04625000000001,
+        "ymin": 30.689375,
+        "xmax": 104.05250000000001,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3756,
+      "order": 139,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 3756,
+        "xmin": 104.05250000000001,
+        "ymin": 30.68375,
+        "xmax": 104.065,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 3757,
+      "order": 140,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 4,
+        "element_code": 3757,
+        "xmin": 104.05250000000001,
+        "ymin": 30.68375,
+        "xmax": 104.05875,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3842,
+      "order": 141,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 3842,
+        "xmin": 104.05875,
+        "ymin": 30.68375,
+        "xmax": 104.065,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 3927,
+      "order": 142,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 3927,
+        "xmin": 104.05250000000001,
+        "ymin": 30.689375,
+        "xmax": 104.05875,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4097,
+      "order": 143,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 2,
+        "element_code": 4097,
+        "xmin": 104.065,
+        "ymin": 30.6725,
+        "xmax": 104.09,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 34
+      }
+    },
+    {
+      "quad_code": 4098,
+      "order": 144,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 4098,
+        "xmin": 104.065,
+        "ymin": 30.6725,
+        "xmax": 104.0775,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 6
+      }
+    },
+    {
+      "quad_code": 4099,
+      "order": 145,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 4099,
+        "xmin": 104.065,
+        "ymin": 30.6725,
+        "xmax": 104.07124999999999,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4184,
+      "order": 146,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 4184,
+        "xmin": 104.07124999999999,
+        "ymin": 30.6725,
+        "xmax": 104.0775,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 4185,
+      "order": 147,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 4185,
+        "xmin": 104.07124999999999,
+        "ymin": 30.6725,
+        "xmax": 104.074375,
+        "ymax": 30.6753125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4206,
+      "order": 148,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 4206,
+        "xmin": 104.074375,
+        "ymin": 30.6725,
+        "xmax": 104.0775,
+        "ymax": 30.6753125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4269,
+      "order": 149,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 4269,
+        "xmin": 104.065,
+        "ymin": 30.678125,
+        "xmax": 104.07124999999999,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4354,
+      "order": 150,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 4354,
+        "xmin": 104.07124999999999,
+        "ymin": 30.678125,
+        "xmax": 104.0775,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4439,
+      "order": 151,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 3,
+        "element_code": 4439,
+        "xmin": 104.0775,
+        "ymin": 30.6725,
+        "xmax": 104.09,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 6
+      }
+    },
+    {
+      "quad_code": 4440,
+      "order": 152,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 4440,
+        "xmin": 104.0775,
+        "ymin": 30.6725,
+        "xmax": 104.08375000000001,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4525,
+      "order": 153,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 4525,
+        "xmin": 104.08375000000001,
+        "ymin": 30.6725,
+        "xmax": 104.09,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4610,
+      "order": 154,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 4610,
+        "xmin": 104.0775,
+        "ymin": 30.678125,
+        "xmax": 104.08375000000001,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 4632,
+      "order": 155,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 4632,
+        "xmin": 104.080625,
+        "ymin": 30.678125,
+        "xmax": 104.08375000000001,
+        "ymax": 30.6809375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4680,
+      "order": 156,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 6,
+        "element_code": 4680,
+        "xmin": 104.0821875,
+        "ymin": 30.6809375,
+        "xmax": 104.08375000000001,
+        "ymax": 30.68234375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4695,
+      "order": 157,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 4695,
+        "xmin": 104.08375000000001,
+        "ymin": 30.678125,
+        "xmax": 104.09,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4780,
+      "order": 158,
+      "parent": {
+        "alpha": 2,
+        "beta": 6,
+        "level": 3,
+        "element_code": 4780,
+        "xmin": 104.065,
+        "ymin": 30.68375,
+        "xmax": 104.0775,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 13
+      }
+    },
+    {
+      "quad_code": 4781,
+      "order": 159,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 4781,
+        "xmin": 104.065,
+        "ymin": 30.68375,
+        "xmax": 104.07124999999999,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4866,
+      "order": 160,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 4866,
+        "xmin": 104.07124999999999,
+        "ymin": 30.68375,
+        "xmax": 104.0775,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 4867,
+      "order": 161,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 4867,
+        "xmin": 104.07124999999999,
+        "ymin": 30.68375,
+        "xmax": 104.074375,
+        "ymax": 30.6865625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4888,
+      "order": 162,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 5,
+        "element_code": 4888,
+        "xmin": 104.074375,
+        "ymin": 30.68375,
+        "xmax": 104.0775,
+        "ymax": 30.6865625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4909,
+      "order": 163,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 4909,
+        "xmin": 104.07124999999999,
+        "ymin": 30.6865625,
+        "xmax": 104.074375,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4930,
+      "order": 164,
+      "parent": {
+        "alpha": 3,
+        "beta": 3,
+        "level": 5,
+        "element_code": 4930,
+        "xmin": 104.074375,
+        "ymin": 30.6865625,
+        "xmax": 104.0775,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 4951,
+      "order": 165,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 4951,
+        "xmin": 104.065,
+        "ymin": 30.689375,
+        "xmax": 104.07124999999999,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 5015,
+      "order": 166,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 5015,
+        "xmin": 104.068125,
+        "ymin": 30.6921875,
+        "xmax": 104.07124999999999,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 5031,
+      "order": 167,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 6,
+        "element_code": 5031,
+        "xmin": 104.06968749999999,
+        "ymin": 30.693593749999998,
+        "xmax": 104.07124999999999,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5036,
+      "order": 168,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5036,
+        "xmin": 104.07124999999999,
+        "ymin": 30.689375,
+        "xmax": 104.0775,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 5079,
+      "order": 169,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 5079,
+        "xmin": 104.07124999999999,
+        "ymin": 30.6921875,
+        "xmax": 104.074375,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 5090,
+      "order": 170,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 6,
+        "element_code": 5090,
+        "xmin": 104.07124999999999,
+        "ymin": 30.693593749999998,
+        "xmax": 104.0728125,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5098,
+      "order": 171,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 7,
+        "element_code": 5098,
+        "xmin": 104.0728125,
+        "ymin": 30.694296875,
+        "xmax": 104.07359375,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5121,
+      "order": 172,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 5121,
+        "xmin": 104.0775,
+        "ymin": 30.68375,
+        "xmax": 104.09,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 5
+      }
+    },
+    {
+      "quad_code": 5122,
+      "order": 173,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5122,
+        "xmin": 104.0775,
+        "ymin": 30.68375,
+        "xmax": 104.08375000000001,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5207,
+      "order": 174,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5207,
+        "xmin": 104.08375000000001,
+        "ymin": 30.68375,
+        "xmax": 104.09,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5292,
+      "order": 175,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5292,
+        "xmin": 104.0775,
+        "ymin": 30.689375,
+        "xmax": 104.08375000000001,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5377,
+      "order": 176,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5377,
+        "xmin": 104.08375000000001,
+        "ymin": 30.689375,
+        "xmax": 104.09,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 5399,
+      "order": 177,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 5399,
+        "xmin": 104.086875,
+        "ymin": 30.689375,
+        "xmax": 104.09,
+        "ymax": 30.6921875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5462,
+      "order": 178,
+      "parent": {
+        "alpha": 3,
+        "beta": 3,
+        "level": 1,
+        "element_code": 5462,
+        "xmin": 104.09,
+        "ymin": 30.65,
+        "xmax": 104.14,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 81
+      }
+    },
+    {
+      "quad_code": 5463,
+      "order": 179,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 2,
+        "element_code": 5463,
+        "xmin": 104.09,
+        "ymin": 30.65,
+        "xmax": 104.11500000000001,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 38
+      }
+    },
+    {
+      "quad_code": 5464,
+      "order": 180,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 5464,
+        "xmin": 104.09,
+        "ymin": 30.65,
+        "xmax": 104.1025,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 11
+      }
+    },
+    {
+      "quad_code": 5465,
+      "order": 181,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5465,
+        "xmin": 104.09,
+        "ymin": 30.65,
+        "xmax": 104.09625,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 5508,
+      "order": 182,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 5508,
+        "xmin": 104.09,
+        "ymin": 30.6528125,
+        "xmax": 104.093125,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5529,
+      "order": 183,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 5529,
+        "xmin": 104.093125,
+        "ymin": 30.6528125,
+        "xmax": 104.09625,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5550,
+      "order": 184,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5550,
+        "xmin": 104.09625,
+        "ymin": 30.65,
+        "xmax": 104.1025,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 5593,
+      "order": 185,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 5593,
+        "xmin": 104.09625,
+        "ymin": 30.6528125,
+        "xmax": 104.09937500000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 5594,
+      "order": 186,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 6,
+        "element_code": 5594,
+        "xmin": 104.09625,
+        "ymin": 30.6528125,
+        "xmax": 104.0978125,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5599,
+      "order": 187,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 5599,
+        "xmin": 104.0978125,
+        "ymin": 30.6528125,
+        "xmax": 104.09937500000001,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5635,
+      "order": 188,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5635,
+        "xmin": 104.09,
+        "ymin": 30.655625,
+        "xmax": 104.09625,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 5636,
+      "order": 189,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 5636,
+        "xmin": 104.09,
+        "ymin": 30.655625,
+        "xmax": 104.093125,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5710,
+      "order": 190,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 6,
+        "element_code": 5710,
+        "xmin": 104.093125,
+        "ymin": 30.65984375,
+        "xmax": 104.09468749999999,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5720,
+      "order": 191,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5720,
+        "xmin": 104.09625,
+        "ymin": 30.655625,
+        "xmax": 104.1025,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5805,
+      "order": 192,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 5805,
+        "xmin": 104.1025,
+        "ymin": 30.65,
+        "xmax": 104.11500000000001,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 9
+      }
+    },
+    {
+      "quad_code": 5806,
+      "order": 193,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5806,
+        "xmin": 104.1025,
+        "ymin": 30.65,
+        "xmax": 104.10875000000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 5849,
+      "order": 194,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 5849,
+        "xmin": 104.1025,
+        "ymin": 30.6528125,
+        "xmax": 104.105625,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5870,
+      "order": 195,
+      "parent": {
+        "alpha": 2,
+        "beta": 5,
+        "level": 5,
+        "element_code": 5870,
+        "xmin": 104.105625,
+        "ymin": 30.6528125,
+        "xmax": 104.10875000000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5891,
+      "order": 196,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 5891,
+        "xmin": 104.10875000000001,
+        "ymin": 30.65,
+        "xmax": 104.11500000000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 5934,
+      "order": 197,
+      "parent": {
+        "alpha": 3,
+        "beta": 3,
+        "level": 5,
+        "element_code": 5934,
+        "xmin": 104.10875000000001,
+        "ymin": 30.6528125,
+        "xmax": 104.11187500000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 5941,
+      "order": 198,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 7,
+        "element_code": 5941,
+        "xmin": 104.11031250000002,
+        "ymin": 30.6528125,
+        "xmax": 104.11109375000001,
+        "ymax": 30.653515624999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5955,
+      "order": 199,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 5955,
+        "xmin": 104.11187500000001,
+        "ymin": 30.6528125,
+        "xmax": 104.11500000000001,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 5976,
+      "order": 200,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 5976,
+        "xmin": 104.1025,
+        "ymin": 30.655625,
+        "xmax": 104.10875000000001,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6061,
+      "order": 201,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 6061,
+        "xmin": 104.10875000000001,
+        "ymin": 30.655625,
+        "xmax": 104.11500000000001,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6146,
+      "order": 202,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 6146,
+        "xmin": 104.09,
+        "ymin": 30.66125,
+        "xmax": 104.1025,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 6
+      }
+    },
+    {
+      "quad_code": 6147,
+      "order": 203,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 6147,
+        "xmin": 104.09,
+        "ymin": 30.66125,
+        "xmax": 104.09625,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 6169,
+      "order": 204,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 6169,
+        "xmin": 104.093125,
+        "ymin": 30.66125,
+        "xmax": 104.09625,
+        "ymax": 30.6640625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6232,
+      "order": 205,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 6232,
+        "xmin": 104.09625,
+        "ymin": 30.66125,
+        "xmax": 104.1025,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6317,
+      "order": 206,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 4,
+        "element_code": 6317,
+        "xmin": 104.09,
+        "ymin": 30.666874999999997,
+        "xmax": 104.09625,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6402,
+      "order": 207,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 6402,
+        "xmin": 104.09625,
+        "ymin": 30.666874999999997,
+        "xmax": 104.1025,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 6424,
+      "order": 208,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 6424,
+        "xmin": 104.09937500000001,
+        "ymin": 30.666874999999997,
+        "xmax": 104.1025,
+        "ymax": 30.6696875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6487,
+      "order": 209,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 6487,
+        "xmin": 104.1025,
+        "ymin": 30.66125,
+        "xmax": 104.11500000000001,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 8
+      }
+    },
+    {
+      "quad_code": 6488,
+      "order": 210,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 6488,
+        "xmin": 104.1025,
+        "ymin": 30.66125,
+        "xmax": 104.10875000000001,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6573,
+      "order": 211,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 6573,
+        "xmin": 104.10875000000001,
+        "ymin": 30.66125,
+        "xmax": 104.11500000000001,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 6595,
+      "order": 212,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 6595,
+        "xmin": 104.11187500000001,
+        "ymin": 30.66125,
+        "xmax": 104.11500000000001,
+        "ymax": 30.6640625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6658,
+      "order": 213,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 6658,
+        "xmin": 104.1025,
+        "ymin": 30.666874999999997,
+        "xmax": 104.10875000000001,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 6659,
+      "order": 214,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 6659,
+        "xmin": 104.1025,
+        "ymin": 30.666874999999997,
+        "xmax": 104.105625,
+        "ymax": 30.6696875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6701,
+      "order": 215,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 6701,
+        "xmin": 104.1025,
+        "ymin": 30.6696875,
+        "xmax": 104.105625,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6743,
+      "order": 216,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 6743,
+        "xmin": 104.10875000000001,
+        "ymin": 30.666874999999997,
+        "xmax": 104.11500000000001,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 6786,
+      "order": 217,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 6786,
+        "xmin": 104.10875000000001,
+        "ymin": 30.6696875,
+        "xmax": 104.11187500000001,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6828,
+      "order": 218,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 2,
+        "element_code": 6828,
+        "xmin": 104.11500000000001,
+        "ymin": 30.65,
+        "xmax": 104.14,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 18
+      }
+    },
+    {
+      "quad_code": 6829,
+      "order": 219,
+      "parent": {
+        "alpha": 2,
+        "beta": 5,
+        "level": 3,
+        "element_code": 6829,
+        "xmin": 104.11500000000001,
+        "ymin": 30.65,
+        "xmax": 104.1275,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 9
+      }
+    },
+    {
+      "quad_code": 6830,
+      "order": 220,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 6830,
+        "xmin": 104.11500000000001,
+        "ymin": 30.65,
+        "xmax": 104.12125,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 6873,
+      "order": 221,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 6873,
+        "xmin": 104.11500000000001,
+        "ymin": 30.6528125,
+        "xmax": 104.118125,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 6874,
+      "order": 222,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 6874,
+        "xmin": 104.11500000000001,
+        "ymin": 30.6528125,
+        "xmax": 104.11656250000001,
+        "ymax": 30.65421875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 6915,
+      "order": 223,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 6915,
+        "xmin": 104.12125,
+        "ymin": 30.65,
+        "xmax": 104.1275,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 6958,
+      "order": 224,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 5,
+        "element_code": 6958,
+        "xmin": 104.12125,
+        "ymin": 30.6528125,
+        "xmax": 104.124375,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 7000,
+      "order": 225,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 7000,
+        "xmin": 104.11500000000001,
+        "ymin": 30.655625,
+        "xmax": 104.12125,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 7085,
+      "order": 226,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 7085,
+        "xmin": 104.12125,
+        "ymin": 30.655625,
+        "xmax": 104.1275,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 7107,
+      "order": 227,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 7107,
+        "xmin": 104.124375,
+        "ymin": 30.655625,
+        "xmax": 104.1275,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 7149,
+      "order": 228,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 7149,
+        "xmin": 104.124375,
+        "ymin": 30.658437499999998,
+        "xmax": 104.1275,
+        "ymax": 30.66125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 7171,
+      "order": 229,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 7171,
+        "xmin": 104.1275,
+        "ymin": 30.65,
+        "xmax": 104.13374999999999,
+        "ymax": 30.655625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 7342,
+      "order": 230,
+      "parent": {
+        "alpha": 4,
+        "beta": 2,
+        "level": 5,
+        "element_code": 7342,
+        "xmin": 104.1275,
+        "ymin": 30.655625,
+        "xmax": 104.130625,
+        "ymax": 30.658437499999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 7511,
+      "order": 231,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 7511,
+        "xmin": 104.11500000000001,
+        "ymin": 30.66125,
+        "xmax": 104.1275,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 5
+      }
+    },
+    {
+      "quad_code": 7512,
+      "order": 232,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 7512,
+        "xmin": 104.11500000000001,
+        "ymin": 30.66125,
+        "xmax": 104.12125,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 7597,
+      "order": 233,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 7597,
+        "xmin": 104.12125,
+        "ymin": 30.66125,
+        "xmax": 104.1275,
+        "ymax": 30.666874999999997
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 7767,
+      "order": 234,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 7767,
+        "xmin": 104.12125,
+        "ymin": 30.666874999999997,
+        "xmax": 104.1275,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 7789,
+      "order": 235,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 7789,
+        "xmin": 104.124375,
+        "ymin": 30.666874999999997,
+        "xmax": 104.1275,
+        "ymax": 30.6696875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 7831,
+      "order": 236,
+      "parent": {
+        "alpha": 4,
+        "beta": 4,
+        "level": 5,
+        "element_code": 7831,
+        "xmin": 104.124375,
+        "ymin": 30.6696875,
+        "xmax": 104.1275,
+        "ymax": 30.6725
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 8193,
+      "order": 237,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 2,
+        "element_code": 8193,
+        "xmin": 104.09,
+        "ymin": 30.6725,
+        "xmax": 104.11500000000001,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 15
+      }
+    },
+    {
+      "quad_code": 8194,
+      "order": 238,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 8194,
+        "xmin": 104.09,
+        "ymin": 30.6725,
+        "xmax": 104.1025,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 8195,
+      "order": 239,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 8195,
+        "xmin": 104.09,
+        "ymin": 30.6725,
+        "xmax": 104.09625,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 8365,
+      "order": 240,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 8365,
+        "xmin": 104.09,
+        "ymin": 30.678125,
+        "xmax": 104.09625,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 8450,
+      "order": 241,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 8450,
+        "xmin": 104.09625,
+        "ymin": 30.678125,
+        "xmax": 104.1025,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 8535,
+      "order": 242,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 8535,
+        "xmin": 104.1025,
+        "ymin": 30.6725,
+        "xmax": 104.11500000000001,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 8536,
+      "order": 243,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 8536,
+        "xmin": 104.1025,
+        "ymin": 30.6725,
+        "xmax": 104.10875000000001,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 8621,
+      "order": 244,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 8621,
+        "xmin": 104.10875000000001,
+        "ymin": 30.6725,
+        "xmax": 104.11500000000001,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 8706,
+      "order": 245,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 8706,
+        "xmin": 104.1025,
+        "ymin": 30.678125,
+        "xmax": 104.10875000000001,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 8791,
+      "order": 246,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 8791,
+        "xmin": 104.10875000000001,
+        "ymin": 30.678125,
+        "xmax": 104.11500000000001,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 8876,
+      "order": 247,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 8876,
+        "xmin": 104.09,
+        "ymin": 30.68375,
+        "xmax": 104.1025,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 8877,
+      "order": 248,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 8877,
+        "xmin": 104.09,
+        "ymin": 30.68375,
+        "xmax": 104.09625,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 8962,
+      "order": 249,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 8962,
+        "xmin": 104.09625,
+        "ymin": 30.68375,
+        "xmax": 104.1025,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 9047,
+      "order": 250,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 9047,
+        "xmin": 104.09,
+        "ymin": 30.689375,
+        "xmax": 104.09625,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 9217,
+      "order": 251,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 3,
+        "element_code": 9217,
+        "xmin": 104.1025,
+        "ymin": 30.68375,
+        "xmax": 104.11500000000001,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 9218,
+      "order": 252,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 9218,
+        "xmin": 104.1025,
+        "ymin": 30.68375,
+        "xmax": 104.10875000000001,
+        "ymax": 30.689375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 9558,
+      "order": 253,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 2,
+        "element_code": 9558,
+        "xmin": 104.11500000000001,
+        "ymin": 30.6725,
+        "xmax": 104.14,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 6
+      }
+    },
+    {
+      "quad_code": 9559,
+      "order": 254,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 9559,
+        "xmin": 104.11500000000001,
+        "ymin": 30.6725,
+        "xmax": 104.1275,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 9560,
+      "order": 255,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 9560,
+        "xmin": 104.11500000000001,
+        "ymin": 30.6725,
+        "xmax": 104.12125,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 9645,
+      "order": 256,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 9645,
+        "xmin": 104.12125,
+        "ymin": 30.6725,
+        "xmax": 104.1275,
+        "ymax": 30.678125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 9815,
+      "order": 257,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 9815,
+        "xmin": 104.12125,
+        "ymin": 30.678125,
+        "xmax": 104.1275,
+        "ymax": 30.68375
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 9837,
+      "order": 258,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 9837,
+        "xmin": 104.124375,
+        "ymin": 30.678125,
+        "xmax": 104.1275,
+        "ymax": 30.6809375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 10241,
+      "order": 259,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 10241,
+        "xmin": 104.11500000000001,
+        "ymin": 30.68375,
+        "xmax": 104.1275,
+        "ymax": 30.695
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 10923,
+      "order": 260,
+      "parent": {
+        "alpha": 3,
+        "beta": 3,
+        "level": 1,
+        "element_code": 10923,
+        "xmin": 104.04,
+        "ymin": 30.695,
+        "xmax": 104.09,
+        "ymax": 30.74
+      },
+      "coverage": {
+        "effective_subtree_count": 50
+      }
+    },
+    {
+      "quad_code": 10924,
+      "order": 261,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 2,
+        "element_code": 10924,
+        "xmin": 104.04,
+        "ymin": 30.695,
+        "xmax": 104.065,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 22
+      }
+    },
+    {
+      "quad_code": 10925,
+      "order": 262,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 10925,
+        "xmin": 104.04,
+        "ymin": 30.695,
+        "xmax": 104.05250000000001,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 10
+      }
+    },
+    {
+      "quad_code": 10926,
+      "order": 263,
+      "parent": {
+        "alpha": 2,
+        "beta": 5,
+        "level": 4,
+        "element_code": 10926,
+        "xmin": 104.04,
+        "ymin": 30.695,
+        "xmax": 104.04625000000001,
+        "ymax": 30.700625000000002
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 10927,
+      "order": 264,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 10927,
+        "xmin": 104.04,
+        "ymin": 30.695,
+        "xmax": 104.043125,
+        "ymax": 30.6978125
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 10943,
+      "order": 265,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 10943,
+        "xmin": 104.0415625,
+        "ymin": 30.696406250000003,
+        "xmax": 104.043125,
+        "ymax": 30.6978125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 10969,
+      "order": 266,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 10969,
+        "xmin": 104.04,
+        "ymin": 30.6978125,
+        "xmax": 104.043125,
+        "ymax": 30.700625000000002
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 10985,
+      "order": 267,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 10985,
+        "xmin": 104.0415625,
+        "ymin": 30.69921875,
+        "xmax": 104.043125,
+        "ymax": 30.700625000000002
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 11096,
+      "order": 268,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 11096,
+        "xmin": 104.04,
+        "ymin": 30.700625000000002,
+        "xmax": 104.04625000000001,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 11097,
+      "order": 269,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 11097,
+        "xmin": 104.04,
+        "ymin": 30.700625000000002,
+        "xmax": 104.043125,
+        "ymax": 30.7034375
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 11113,
+      "order": 270,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 11113,
+        "xmin": 104.0415625,
+        "ymin": 30.70203125,
+        "xmax": 104.043125,
+        "ymax": 30.7034375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 11118,
+      "order": 271,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 11118,
+        "xmin": 104.043125,
+        "ymin": 30.700625000000002,
+        "xmax": 104.04625000000001,
+        "ymax": 30.7034375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 11181,
+      "order": 272,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 11181,
+        "xmin": 104.04625000000001,
+        "ymin": 30.700625000000002,
+        "xmax": 104.05250000000001,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 11266,
+      "order": 273,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 11266,
+        "xmin": 104.05250000000001,
+        "ymin": 30.695,
+        "xmax": 104.065,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 11607,
+      "order": 274,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 11607,
+        "xmin": 104.04,
+        "ymin": 30.70625,
+        "xmax": 104.05250000000001,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 7
+      }
+    },
+    {
+      "quad_code": 11608,
+      "order": 275,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 11608,
+        "xmin": 104.04,
+        "ymin": 30.70625,
+        "xmax": 104.04625000000001,
+        "ymax": 30.711875
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 11609,
+      "order": 276,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 11609,
+        "xmin": 104.04,
+        "ymin": 30.70625,
+        "xmax": 104.043125,
+        "ymax": 30.7090625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 11651,
+      "order": 277,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 5,
+        "element_code": 11651,
+        "xmin": 104.04,
+        "ymin": 30.7090625,
+        "xmax": 104.043125,
+        "ymax": 30.711875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 11778,
+      "order": 278,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 11778,
+        "xmin": 104.04,
+        "ymin": 30.711875,
+        "xmax": 104.04625000000001,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 11779,
+      "order": 279,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 11779,
+        "xmin": 104.04,
+        "ymin": 30.711875,
+        "xmax": 104.043125,
+        "ymax": 30.7146875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 11821,
+      "order": 280,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 11821,
+        "xmin": 104.04,
+        "ymin": 30.7146875,
+        "xmax": 104.043125,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 11827,
+      "order": 281,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 6,
+        "element_code": 11827,
+        "xmin": 104.0415625,
+        "ymin": 30.7146875,
+        "xmax": 104.043125,
+        "ymax": 30.71609375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 11948,
+      "order": 282,
+      "parent": {
+        "alpha": 3,
+        "beta": 3,
+        "level": 3,
+        "element_code": 11948,
+        "xmin": 104.05250000000001,
+        "ymin": 30.70625,
+        "xmax": 104.065,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 12204,
+      "order": 283,
+      "parent": {
+        "alpha": 3,
+        "beta": 4,
+        "level": 4,
+        "element_code": 12204,
+        "xmin": 104.05875,
+        "ymin": 30.711875,
+        "xmax": 104.065,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 12289,
+      "order": 284,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 2,
+        "element_code": 12289,
+        "xmin": 104.065,
+        "ymin": 30.695,
+        "xmax": 104.09,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 11
+      }
+    },
+    {
+      "quad_code": 12290,
+      "order": 285,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 12290,
+        "xmin": 104.065,
+        "ymin": 30.695,
+        "xmax": 104.0775,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 12440,
+      "order": 286,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 12440,
+        "xmin": 104.074375,
+        "ymin": 30.6978125,
+        "xmax": 104.0775,
+        "ymax": 30.700625000000002
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 12461,
+      "order": 287,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 12461,
+        "xmin": 104.065,
+        "ymin": 30.700625000000002,
+        "xmax": 104.07124999999999,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 12546,
+      "order": 288,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 12546,
+        "xmin": 104.07124999999999,
+        "ymin": 30.700625000000002,
+        "xmax": 104.0775,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 12547,
+      "order": 289,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 12547,
+        "xmin": 104.07124999999999,
+        "ymin": 30.700625000000002,
+        "xmax": 104.074375,
+        "ymax": 30.7034375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 12631,
+      "order": 290,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 12631,
+        "xmin": 104.0775,
+        "ymin": 30.695,
+        "xmax": 104.09,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 12972,
+      "order": 291,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 12972,
+        "xmin": 104.065,
+        "ymin": 30.70625,
+        "xmax": 104.0775,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 12973,
+      "order": 292,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 12973,
+        "xmin": 104.065,
+        "ymin": 30.70625,
+        "xmax": 104.07124999999999,
+        "ymax": 30.711875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 13143,
+      "order": 293,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 13143,
+        "xmin": 104.065,
+        "ymin": 30.711875,
+        "xmax": 104.07124999999999,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 13313,
+      "order": 294,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 13313,
+        "xmin": 104.0775,
+        "ymin": 30.70625,
+        "xmax": 104.09,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 13569,
+      "order": 295,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 13569,
+        "xmin": 104.08375000000001,
+        "ymin": 30.711875,
+        "xmax": 104.09,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 13654,
+      "order": 296,
+      "parent": {
+        "alpha": 7,
+        "beta": 2,
+        "level": 2,
+        "element_code": 13654,
+        "xmin": 104.04,
+        "ymin": 30.7175,
+        "xmax": 104.065,
+        "ymax": 30.74
+      },
+      "coverage": {
+        "effective_subtree_count": 8
+      }
+    },
+    {
+      "quad_code": 13655,
+      "order": 297,
+      "parent": {
+        "alpha": 3,
+        "beta": 3,
+        "level": 3,
+        "element_code": 13655,
+        "xmin": 104.04,
+        "ymin": 30.7175,
+        "xmax": 104.05250000000001,
+        "ymax": 30.728749999999998
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 13656,
+      "order": 298,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 13656,
+        "xmin": 104.04,
+        "ymin": 30.7175,
+        "xmax": 104.04625000000001,
+        "ymax": 30.723125
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 13657,
+      "order": 299,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 5,
+        "element_code": 13657,
+        "xmin": 104.04,
+        "ymin": 30.7175,
+        "xmax": 104.043125,
+        "ymax": 30.7203125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 13741,
+      "order": 300,
+      "parent": {
+        "alpha": 4,
+        "beta": 2,
+        "level": 4,
+        "element_code": 13741,
+        "xmin": 104.04625000000001,
+        "ymin": 30.7175,
+        "xmax": 104.05250000000001,
+        "ymax": 30.723125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 13911,
+      "order": 301,
+      "parent": {
+        "alpha": 5,
+        "beta": 4,
+        "level": 4,
+        "element_code": 13911,
+        "xmin": 104.04625000000001,
+        "ymin": 30.723125,
+        "xmax": 104.05250000000001,
+        "ymax": 30.728749999999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 13996,
+      "order": 302,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 13996,
+        "xmin": 104.05250000000001,
+        "ymin": 30.7175,
+        "xmax": 104.065,
+        "ymax": 30.728749999999998
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 13997,
+      "order": 303,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 13997,
+        "xmin": 104.05250000000001,
+        "ymin": 30.7175,
+        "xmax": 104.05875,
+        "ymax": 30.723125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 14082,
+      "order": 304,
+      "parent": {
+        "alpha": 3,
+        "beta": 3,
+        "level": 4,
+        "element_code": 14082,
+        "xmin": 104.05875,
+        "ymin": 30.7175,
+        "xmax": 104.065,
+        "ymax": 30.723125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 15019,
+      "order": 305,
+      "parent": {
+        "alpha": 5,
+        "beta": 2,
+        "level": 2,
+        "element_code": 15019,
+        "xmin": 104.065,
+        "ymin": 30.7175,
+        "xmax": 104.09,
+        "ymax": 30.74
+      },
+      "coverage": {
+        "effective_subtree_count": 5
+      }
+    },
+    {
+      "quad_code": 15020,
+      "order": 306,
+      "parent": {
+        "alpha": 3,
+        "beta": 3,
+        "level": 3,
+        "element_code": 15020,
+        "xmin": 104.065,
+        "ymin": 30.7175,
+        "xmax": 104.0775,
+        "ymax": 30.728749999999998
+      },
+      "coverage": {
+        "effective_subtree_count": 2
+      }
+    },
+    {
+      "quad_code": 15021,
+      "order": 307,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 15021,
+        "xmin": 104.065,
+        "ymin": 30.7175,
+        "xmax": 104.07124999999999,
+        "ymax": 30.723125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 15106,
+      "order": 308,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 15106,
+        "xmin": 104.07124999999999,
+        "ymin": 30.7175,
+        "xmax": 104.0775,
+        "ymax": 30.723125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 15362,
+      "order": 309,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 15362,
+        "xmin": 104.0775,
+        "ymin": 30.7175,
+        "xmax": 104.08375000000001,
+        "ymax": 30.723125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 15447,
+      "order": 310,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 15447,
+        "xmin": 104.08375000000001,
+        "ymin": 30.7175,
+        "xmax": 104.09,
+        "ymax": 30.723125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 16385,
+      "order": 311,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 2,
+        "element_code": 16385,
+        "xmin": 104.09,
+        "ymin": 30.695,
+        "xmax": 104.11500000000001,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 21
+      }
+    },
+    {
+      "quad_code": 16386,
+      "order": 312,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 16386,
+        "xmin": 104.09,
+        "ymin": 30.695,
+        "xmax": 104.1025,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 7
+      }
+    },
+    {
+      "quad_code": 16387,
+      "order": 313,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 16387,
+        "xmin": 104.09,
+        "ymin": 30.695,
+        "xmax": 104.09625,
+        "ymax": 30.700625000000002
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 16451,
+      "order": 314,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 16451,
+        "xmin": 104.093125,
+        "ymin": 30.6978125,
+        "xmax": 104.09625,
+        "ymax": 30.700625000000002
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 16472,
+      "order": 315,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 16472,
+        "xmin": 104.09625,
+        "ymin": 30.695,
+        "xmax": 104.1025,
+        "ymax": 30.700625000000002
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 16515,
+      "order": 316,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 16515,
+        "xmin": 104.09625,
+        "ymin": 30.6978125,
+        "xmax": 104.09937500000001,
+        "ymax": 30.700625000000002
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 16557,
+      "order": 317,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 16557,
+        "xmin": 104.09,
+        "ymin": 30.700625000000002,
+        "xmax": 104.09625,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 16579,
+      "order": 318,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 5,
+        "element_code": 16579,
+        "xmin": 104.093125,
+        "ymin": 30.700625000000002,
+        "xmax": 104.09625,
+        "ymax": 30.7034375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 16642,
+      "order": 319,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 16642,
+        "xmin": 104.09625,
+        "ymin": 30.700625000000002,
+        "xmax": 104.1025,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 16727,
+      "order": 320,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 16727,
+        "xmin": 104.1025,
+        "ymin": 30.695,
+        "xmax": 104.11500000000001,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 16728,
+      "order": 321,
+      "parent": {
+        "alpha": 4,
+        "beta": 3,
+        "level": 4,
+        "element_code": 16728,
+        "xmin": 104.1025,
+        "ymin": 30.695,
+        "xmax": 104.10875000000001,
+        "ymax": 30.700625000000002
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 16898,
+      "order": 322,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 16898,
+        "xmin": 104.1025,
+        "ymin": 30.700625000000002,
+        "xmax": 104.10875000000001,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 16983,
+      "order": 323,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 16983,
+        "xmin": 104.10875000000001,
+        "ymin": 30.700625000000002,
+        "xmax": 104.11500000000001,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 17068,
+      "order": 324,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 17068,
+        "xmin": 104.09,
+        "ymin": 30.70625,
+        "xmax": 104.1025,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 3
+      }
+    },
+    {
+      "quad_code": 17069,
+      "order": 325,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 17069,
+        "xmin": 104.09,
+        "ymin": 30.70625,
+        "xmax": 104.09625,
+        "ymax": 30.711875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 17154,
+      "order": 326,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 17154,
+        "xmin": 104.09625,
+        "ymin": 30.70625,
+        "xmax": 104.1025,
+        "ymax": 30.711875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 17324,
+      "order": 327,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 17324,
+        "xmin": 104.09625,
+        "ymin": 30.711875,
+        "xmax": 104.1025,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 17409,
+      "order": 328,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 17409,
+        "xmin": 104.1025,
+        "ymin": 30.70625,
+        "xmax": 104.11500000000001,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 17410,
+      "order": 329,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 17410,
+        "xmin": 104.1025,
+        "ymin": 30.70625,
+        "xmax": 104.10875000000001,
+        "ymax": 30.711875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 17495,
+      "order": 330,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 4,
+        "element_code": 17495,
+        "xmin": 104.10875000000001,
+        "ymin": 30.70625,
+        "xmax": 104.11500000000001,
+        "ymax": 30.711875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 17580,
+      "order": 331,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 17580,
+        "xmin": 104.1025,
+        "ymin": 30.711875,
+        "xmax": 104.10875000000001,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 17687,
+      "order": 332,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 17687,
+        "xmin": 104.11187500000001,
+        "ymin": 30.711875,
+        "xmax": 104.11500000000001,
+        "ymax": 30.7146875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 17751,
+      "order": 333,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 17751,
+        "xmin": 104.11500000000001,
+        "ymin": 30.695,
+        "xmax": 104.1275,
+        "ymax": 30.70625
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 18433,
+      "order": 334,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 3,
+        "element_code": 18433,
+        "xmin": 104.11500000000001,
+        "ymin": 30.70625,
+        "xmax": 104.1275,
+        "ymax": 30.7175
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 18519,
+      "order": 335,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 4,
+        "element_code": 18519,
+        "xmin": 104.12125,
+        "ymin": 30.70625,
+        "xmax": 104.1275,
+        "ymax": 30.711875
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 18947,
+      "order": 336,
+      "parent": {
+        "alpha": 3,
+        "beta": 3,
+        "level": 6,
+        "element_code": 18947,
+        "xmin": 104.1275,
+        "ymin": 30.711875,
+        "xmax": 104.1290625,
+        "ymax": 30.71328125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 19115,
+      "order": 337,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 2,
+        "element_code": 19115,
+        "xmin": 104.09,
+        "ymin": 30.7175,
+        "xmax": 104.11500000000001,
+        "ymax": 30.74
+      },
+      "coverage": {
+        "effective_subtree_count": 6
+      }
+    },
+    {
+      "quad_code": 19116,
+      "order": 338,
+      "parent": {
+        "alpha": 2,
+        "beta": 3,
+        "level": 3,
+        "element_code": 19116,
+        "xmin": 104.09,
+        "ymin": 30.7175,
+        "xmax": 104.1025,
+        "ymax": 30.728749999999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 19457,
+      "order": 339,
+      "parent": {
+        "alpha": 2,
+        "beta": 4,
+        "level": 3,
+        "element_code": 19457,
+        "xmin": 104.1025,
+        "ymin": 30.7175,
+        "xmax": 104.11500000000001,
+        "ymax": 30.728749999999998
+      },
+      "coverage": {
+        "effective_subtree_count": 4
+      }
+    },
+    {
+      "quad_code": 19458,
+      "order": 340,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 4,
+        "element_code": 19458,
+        "xmin": 104.1025,
+        "ymin": 30.7175,
+        "xmax": 104.10875000000001,
+        "ymax": 30.723125
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 19522,
+      "order": 341,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 19522,
+        "xmin": 104.105625,
+        "ymin": 30.7203125,
+        "xmax": 104.10875000000001,
+        "ymax": 30.723125
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 19650,
+      "order": 342,
+      "parent": {
+        "alpha": 2,
+        "beta": 2,
+        "level": 5,
+        "element_code": 19650,
+        "xmin": 104.105625,
+        "ymin": 30.723125,
+        "xmax": 104.10875000000001,
+        "ymax": 30.7259375
+      },
+      "coverage": {
+        "effective_subtree_count": 1
+      }
+    },
+    {
+      "quad_code": 19666,
+      "order": 343,
+      "parent": {
+        "alpha": 3,
+        "beta": 2,
+        "level": 6,
+        "element_code": 19666,
+        "xmin": 104.10718750000001,
+        "ymin": 30.72453125,
+        "xmax": 104.10875000000001,
+        "ymax": 30.7259375
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    },
+    {
+      "quad_code": 20481,
+      "order": 344,
+      "parent": {
+        "alpha": 2,
+        "beta": 5,
+        "level": 3,
+        "element_code": 20481,
+        "xmin": 104.11500000000001,
+        "ymin": 30.7175,
+        "xmax": 104.1275,
+        "ymax": 30.728749999999998
+      },
+      "coverage": {
+        "effective_subtree_count": 0
+      }
+    }
+  ],
+  "metadata": {
+    "total_cells": 21845,
+    "active_cells": 345,
+    "spatial_boundary": {
+      "xmin": 104.04,
+      "ymin": 30.65,
+      "xmax": 104.14,
+      "ymax": 30.74
+    },
+    "quadtree_max_level": 7,
+    "global_alpha": 2,
+    "global_beta": 2,
+    "generation_timestamp": "2026-04-26T21:55:18.725527",
+    "version": "1.4",
+    "order_source": "pruned_default_xz_order",
+    "effective_subtree_contiguous": true,
+    "partition_search": [
+      [
+        2,
+        2
+      ],
+      [
+        8,
+        8
+      ]
+    ],
+    "max_partition": 20,
+    "max_shape_count": 64,
+    "min_trajs": 4
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "datasets": [
+    {
+      "name": "Tdrive",
+      "queryBaseDir": "/home/t1anyu/data/tquery/",
+      "dataFilePath": "/home/t1anyu/data/tdrive/tdrive.txt"
+    }
+  ],
+  "distributions": ["uniform", "skewed", "gaussian"],
+  "queryRanges": [100, 500, 1000, 1500, 2000],
+  "methods": ["LETI", "TSHAPE", "XZ_STAR", "LMSFC", "BMTREE"],
+  "outputDir": "/home/t1anyu/experiment/comparison/tdrive",
+  "cleanupTablesAfterRun": true
+}

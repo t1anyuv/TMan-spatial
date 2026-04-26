@@ -1,0 +1,14 @@
+{
+  "datasets": [
+    {
+      "name": "CD-Taxi",
+      "queryBaseDir": "/home/t1anyu/data/cquery/",
+      "dataFilePath": "/home/t1anyu/data/cdtaxi/cleaned_cd_taxi.txt"
+    }
+  ],
+  "distributions": ["uniform", "skewed", "gaussian"],
+  "queryRanges": [100, 500, 1000, 1500, 2000],
+  "methods": ["LETI", "TSHAPE", "XZ_STAR", "LMSFC", "BMTREE"],
+  "outputDir": "/home/t1anyu/experiment/comparison/cd-taxi",
+  "cleanupTablesAfterRun": true
+}

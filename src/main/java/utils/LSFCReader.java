@@ -42,6 +42,10 @@ public class LSFCReader {
      */
     public static LSFCMapper loadFromClasspath(String resourcePath) throws IOException {
         String resolvedPath = LetiOrderResolver.resolveClasspathResource(resourcePath);
+        File localFile = new File(resolvedPath);
+        if (localFile.exists()) {
+            return load(resolvedPath);
+        }
         String normalizedPath = resolvedPath.startsWith("/") ? resolvedPath : "/" + resolvedPath;
 
         LSFCMapper cached = cache.get(normalizedPath);
@@ -89,6 +93,10 @@ public class LSFCReader {
      */
     public static EffectiveNodeIndex loadEffectiveOnlyFromClasspath(String resourcePath) throws IOException {
         String resolvedPath = LetiOrderResolver.resolveClasspathResource(resourcePath);
+        File localFile = new File(resolvedPath);
+        if (localFile.exists()) {
+            return loadEffectiveOnly(resolvedPath);
+        }
         String normalizedPath = resolvedPath.startsWith("/") ? resolvedPath : "/" + resolvedPath;
 
         EffectiveNodeIndex cached = effectiveOnlyCache.get(normalizedPath);
@@ -135,6 +143,20 @@ public class LSFCReader {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(file);
         return parseJsonNode(root);
+    }
+
+    /**
+     * Loads only the effective-node index view from a local filesystem path.
+     */
+    public static EffectiveNodeIndex loadEffectiveOnly(String filePath) throws IOException {
+        File file = new File(filePath);
+        if (!file.exists()) {
+            throw new FileNotFoundException("File not found: " + filePath);
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(file);
+        return parseEffectiveNodeIndex(root);
     }
 
     /**

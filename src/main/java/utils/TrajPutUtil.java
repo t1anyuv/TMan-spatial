@@ -61,17 +61,16 @@ public class TrajPutUtil implements Serializable {
      * @param order 形状编码（shapeOrder，TSP 编码后的值）
      * @param config 表配置
      * @return Tuple3<Put, Long, List < KeyValue>> Put 操作、索引值、KeyValue 列表
-     * @throws ParseException WKT 解析异常
      */
-    public static Tuple3<Put, Long, List<KeyValue>> getPutWithIndex(String traj, Long location, Integer order, TableConfig config) throws ParseException {
-        String[] t = traj.split("-");
+    public static Tuple3<Put, Long, List<KeyValue>> getPutWithIndex(String traj, Long location, Integer order, TableConfig config) {
+        TrajectoryParser.ParsedTrajectory pt = TrajectoryParser.parse(traj);
         int moveBits = config.getAlpha() * config.getBeta();
         long index = order.longValue() | (location << moveBits);
-        String tid = t[1];
+        String tid = pt.tid;
         tid = tid + (int) (Math.random() * 20);
 
         byte[] rowkey = buildRowkey(index, tid, config);
-        return getPutWithIndex(traj, new Tuple2<>(index, rowkey), config);
+        return getPutWithIndex(pt, new Tuple2<>(index, rowkey), config);
     }
 
     /**
@@ -86,12 +85,18 @@ public class TrajPutUtil implements Serializable {
      * @param indexValue Tuple2<索引值, RowKey字节数组>
      * @param config 表配置
      * @return Tuple3<Put, Long, List < KeyValue>> Put 操作、索引值、KeyValue 列表
-     * @throws ParseException WKT 解析异常
      */
-    public static Tuple3<Put, Long, List<KeyValue>> getPutWithIndex(String traj, Tuple2<Long, byte[]> indexValue, TableConfig config) throws ParseException {
-        String[] t = traj.split("-");
-        MultiPoint geo = parseWKTToMultiPoint(t[2]);
-        org.locationtech.jts.geom.Geometry geoJTS = reader.read(t[2]);
+    public static Tuple3<Put, Long, List<KeyValue>> getPutWithIndex(String traj, Tuple2<Long, byte[]> indexValue, TableConfig config) {
+        TrajectoryParser.ParsedTrajectory pt = TrajectoryParser.parse(traj);
+        return getPutWithIndex(pt, indexValue, config);
+    }
+
+    /**
+     * 构造 Put 操作（使用解析后的轨迹数据）
+     */
+    private static Tuple3<Put, Long, List<KeyValue>> getPutWithIndex(TrajectoryParser.ParsedTrajectory pt, Tuple2<Long, byte[]> indexValue, TableConfig config) {
+        MultiPoint geo = pt.esriGeo;
+        org.locationtech.jts.geom.Geometry geoJTS = pt.jtsGeo;
 
         int[] xValue = new int[geo.getPointCount()];
         int[] yValue = new int[geo.getPointCount()];
@@ -104,13 +109,13 @@ public class TrajPutUtil implements Serializable {
         byte[] zEncoding = integerCompress.encoding(zValue);
 
         byte[] rowkey = indexValue._2;
-        Trajectory trajectory = new Trajectory(t[0], t[1], geoJTS);
+        Trajectory trajectory = new Trajectory(pt.oid, pt.tid, geoJTS);
 
         Put put = new Put(rowkey);
         List<KeyValue> keyValueList = new ArrayList<>();
 
-        addColumnsToPut(put, t[0], t[1], geo, geoJTS, trajectory, xEncoding, yEncoding, zEncoding);
-        addColumnsToKeyValueList(keyValueList, rowkey, t[0], t[1], geo, geoJTS, trajectory, xEncoding, yEncoding, zEncoding);
+        addColumnsToPut(put, pt.oid, pt.tid, geo, geoJTS, trajectory, xEncoding, yEncoding, zEncoding);
+        addColumnsToKeyValueList(keyValueList, rowkey, pt.oid, pt.tid, geo, geoJTS, trajectory, xEncoding, yEncoding, zEncoding);
 
         return new Tuple3<>(put, indexValue._1, keyValueList);
     }
@@ -128,10 +133,10 @@ public class TrajPutUtil implements Serializable {
      * @throws ParseException WKT 解析异常
      */
     public static Tuple3<Put, Long, List<KeyValue>> getPutWithIndex(String traj, long indexValue, TableConfig config) throws ParseException {
-        String[] t = traj.split("-");
-        String tid = t[1] + (int) (Math.random() * 20);
+        TrajectoryParser.ParsedTrajectory pt = TrajectoryParser.parse(traj);
+        String tid = pt.tid + (int) (Math.random() * 20);
         byte[] rowkey = buildRowkey(indexValue, tid, config);
-        return getPutWithIndex(traj, new Tuple2<>(indexValue, rowkey), config);
+        return getPutWithIndex(pt, new Tuple2<>(indexValue, rowkey), config);
     }
 
     /**
@@ -146,9 +151,9 @@ public class TrajPutUtil implements Serializable {
      * @throws ParseException WKT 解析异常
      */
     public static Tuple2<Put, Long> getPut(String traj, TableConfig config) throws ParseException {
-        String[] t = traj.split("-");
-        MultiPoint geo = parseWKTToMultiPoint(t[2]);
-        org.locationtech.jts.geom.Geometry geoJTS = reader.read(t[2]);
+        TrajectoryParser.ParsedTrajectory pt = TrajectoryParser.parse(traj);
+        MultiPoint geo = pt.esriGeo;
+        org.locationtech.jts.geom.Geometry geoJTS = pt.jtsGeo;
 
         int[] xValue = new int[geo.getPointCount()];
         int[] yValue = new int[geo.getPointCount()];
@@ -160,16 +165,16 @@ public class TrajPutUtil implements Serializable {
         byte[] yEncoding = integerCompress.encoding(yValue);
         byte[] zEncoding = integerCompress.encoding(zValue);
 
-        Tuple2<Long, byte[]> indexValue = getIndex(t[0], t[1], geo, geoJTS, config);
+        Tuple2<Long, byte[]> indexValue = getIndex(pt.oid, pt.tid, geo, geoJTS, config);
         byte[] index = indexValue._2;
 
         Put put = new Put(index);
-        put.addColumn(Bytes.toBytes(Constants.DEFAULT_CF), Bytes.toBytes(Constants.O_ID), Bytes.toBytes(Long.parseLong(t[0])));
-        put.addColumn(Bytes.toBytes(Constants.DEFAULT_CF), Bytes.toBytes(Constants.T_ID), Bytes.toBytes(t[1]));
+        put.addColumn(Bytes.toBytes(Constants.DEFAULT_CF), Bytes.toBytes(Constants.O_ID), Bytes.toBytes(Long.parseLong(pt.oid)));
+        put.addColumn(Bytes.toBytes(Constants.DEFAULT_CF), Bytes.toBytes(Constants.T_ID), Bytes.toBytes(pt.tid));
         put.addColumn(Bytes.toBytes(Constants.DEFAULT_CF), Bytes.toBytes(Constants.GEOM_X), xEncoding);
         put.addColumn(Bytes.toBytes(Constants.DEFAULT_CF), Bytes.toBytes(Constants.GEOM_Y), yEncoding);
         put.addColumn(Bytes.toBytes(Constants.DEFAULT_CF), Bytes.toBytes(Constants.GEOM_Z), zEncoding);
-        Trajectory trajectory = new Trajectory(t[0], t[1], geoJTS);
+        Trajectory trajectory = new Trajectory(pt.oid, pt.tid, geoJTS);
         put.addColumn(Bytes.toBytes(Constants.DEFAULT_CF), Bytes.toBytes(Constants.START_POINT), Bytes.toBytes(writer.write(geoJTS.getGeometryN(0))));
         put.addColumn(Bytes.toBytes(Constants.DEFAULT_CF), Bytes.toBytes(Constants.END_POINT), Bytes.toBytes(writer.write(geoJTS.getGeometryN(geoJTS.getNumPoints() - 1))));
         put.addColumn(Bytes.toBytes(Constants.DEFAULT_CF), Bytes.toBytes(Constants.START_TIME), Bytes.toBytes((long) geo.getPoint(0).getZ()));
@@ -234,10 +239,8 @@ public class TrajPutUtil implements Serializable {
      * @return Tuple3<level, quadCode, shapeCode> 四叉树层级、位置编码、形状编码
      */
     public static Tuple3<Object, Object, Object> getSpatialIndex(String traj, TableConfig config) {
-        String[] t = traj.split("-");
-        MultiPoint geo = parseWKTToMultiPoint(t[2]);
-
-        return getSpatialIndex(geo, config);
+        TrajectoryParser.ParsedTrajectory pt = TrajectoryParser.parse(traj);
+        return getSpatialIndex(pt.esriGeo, config);
     }
 
     /**
@@ -287,9 +290,8 @@ public class TrajPutUtil implements Serializable {
      * @return Tuple3<level, quadCode, shapeCode> 四叉树层级、位置编码、形状编码
      */
     public static Tuple3<Object, Object, Object> getSpatialIndex(String traj, TableConfig config, int type) {
-        String[] t = traj.split("-");
-        OperatorImportFromWkt importerWKT = (OperatorImportFromWkt) OperatorFactoryLocal.getInstance().getOperator(Operator.Type.ImportFromWkt);
-        MultiPoint geo = (MultiPoint) importerWKT.execute(0, Geometry.Type.MultiPoint, t[2], null);
+        TrajectoryParser.ParsedTrajectory pt = TrajectoryParser.parse(traj);
+        MultiPoint geo = pt.esriGeo;
         XZSFC xzsfc = null;
         switch (type) {
             case 0:

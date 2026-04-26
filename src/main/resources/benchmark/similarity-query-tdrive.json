@@ -1,0 +1,18 @@
+{
+  "datasets": [
+    {
+      "name": "Tdrive",
+      "dataFilePath": "/home/t1anyu/data/tdrive/tdrive.txt",
+      "queryWorkloadPath": "/home/t1anyu/data/tdrive-query/trajectory_queries.txt"
+    }
+  ],
+  "methods": ["LETI", "TSHAPE", "XZ*"],
+  "queryTypes": ["top_k", "similarity"],
+  "topKValues": [50, 100, 150, 200, 250],
+  "similarityThresholds": [0.001, 0.005, 0.010, 0.015, 0.020],
+  "distanceFunctions": ["FRECHET"],
+  "queryLimit": 100,
+  "topKInitialThreshold": 0.0,
+  "outputDir": "/home/t1anyu/experiment/similarity-query/tdrive",
+  "cleanupTablesAfterRun": true
+}
