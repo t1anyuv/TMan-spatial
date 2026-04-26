@@ -1,0 +1,13 @@
+mode: parameter
+
+java:
+java -cp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar experiments.app.ExperimentApp parameter <query_base_dir> <data_file_path> <output_dir> [dataset_name]
+
+spark-submit:
+spark-submit --class experiments.app.ExperimentApp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar parameter <query_base_dir> <data_file_path> <output_dir> [dataset_name]
+
+arguments:
+<query_base_dir>  query root directory
+<data_file_path>  raw trajectory data file
+<output_dir>      experiment output directory
+[dataset_name]    optional explicit dataset name: Tdrive or CD-Taxi

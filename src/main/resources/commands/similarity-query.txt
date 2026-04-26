@@ -1,0 +1,6 @@
+java -cp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar experiments.standalone.query.SimilarityQuery <table> <query_traj_file> <threshold> <distance_func> <result_csv>
+
+distance_func:
+0  Frechet
+1  Hausdorff
+2  DTW

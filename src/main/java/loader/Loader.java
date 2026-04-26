@@ -2,11 +2,14 @@ package loader;
 
 import com.esri.core.geometry.*;
 import config.TableConfig;
+import lombok.Getter;
+import lombok.Setter;
 import utils.ByteArraysWrapper;
 import utils.TrajPutUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.KeyValue;
@@ -21,6 +24,7 @@ import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.storage.StorageLevel;
@@ -33,6 +37,9 @@ import java.io.Closeable;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.lang.reflect.Field;
 import java.util.*;
 
 import static client.Constants.*;
@@ -43,7 +50,7 @@ import static utils.TrajPutUtil.getSpatialIndex;
 
 
 public class Loader implements Closeable, Serializable {
-    private static final String LETI_UNION_MASK_SUFFIX = ":leti:union_mask";
+    protected static final long NOT_APPLICABLE = -1L;
 
     final TableConfig config;
     final String tableName;
@@ -54,6 +61,26 @@ public class Loader implements Closeable, Serializable {
     final transient Admin admin;
 
     final transient Connection connection;
+
+    @Getter
+    protected StoreSummary lastStoreSummary;
+
+    @Setter
+    @Getter
+    public static class StoreSummary implements Serializable {
+        public long trajectoryCount;
+        public long nodeCount;
+        public long shapeCount = NOT_APPLICABLE;
+        public long indexingTimeMs;
+        public long mainTableBytes;
+        public long indexTableBytes;
+        public long extraIndexInfoBytes;
+        public String note;
+
+        public long getTotalBytes() {
+            return mainTableBytes + indexTableBytes;
+        }
+    }
 
     public Loader(TableConfig config, String tableName, String sourcePath, String resultPath) throws IOException {
         this.config = config;
@@ -66,7 +93,7 @@ public class Loader implements Closeable, Serializable {
     }
 
     public Loader(TableConfig config, String sourcePath, String resultPath) throws IOException {
-        this(config, config.getTableName(), sourcePath, resultPath);
+        this(config, resolveConfiguredTableName(config), sourcePath, resultPath);
     }
 
     /**
@@ -149,7 +176,7 @@ public class Loader implements Closeable, Serializable {
      */
     Map<String, Tuple2<Long, byte[]>> getSecondaryIndex(String traj, byte[] rowKey) {
         // 断言：当前版本仅支持空间主索引
-        assert config.getPrimary().equals(SPATIAL) : "Only SPATIAL primary index is supported";
+        assert isSpatialPrimaryOnly() : "Only SPATIAL primary index is supported";
 
         // 空间是主索引，不需要其他二级索引
         return new HashMap<>();
@@ -163,15 +190,13 @@ public class Loader implements Closeable, Serializable {
      */
     public void deleteSecondaryTable() {
         // 断言：当前版本仅支持空间主索引
-        assert config.getPrimary().equals(SPATIAL) : "Only SPATIAL primary index is supported";
+        assert isSpatialPrimaryOnly() : "Only SPATIAL primary index is supported";
 
         Jedis jedis = new Jedis(config.getRedisHost(), 6379, 60000);
         Pipeline pipelined = jedis.pipelined();
 
         // 删除统计表
         pipelined.del(tableName);
-        pipelined.del(tableName + LETI_UNION_MASK_SUFFIX);
-
         pipelined.sync();
         pipelined.close();
         jedis.close();
@@ -210,6 +235,7 @@ public class Loader implements Closeable, Serializable {
 
         try (JavaSparkContext context = new JavaSparkContext(conf)) {
             JavaRDD<String> rawTrajRDD = context.textFile(sourcePath);
+            long trajectoryCount = rawTrajRDD.count();
 
             // ========================================================================================================
             // indexedRDD: <Put, secondaryIndexMap, list of KV>
@@ -220,7 +246,7 @@ public class Loader implements Closeable, Serializable {
             JavaRDD<Tuple3<Put, Map<String, Tuple2<Long, byte[]>>, List<KeyValue>>> indexedRDD;
 
             // 判断是否需要编码
-            boolean needTSPEncoding = config.isTspEncoding() && config.getPrimary().equals(SPATIAL);
+            boolean needTSPEncoding = config.isTspEncoding() && isSpatialPrimaryOnly();
 
             if (needTSPEncoding) {
                 indexedRDD = rawTrajRDD.mapToPair(v -> {
@@ -259,7 +285,7 @@ public class Loader implements Closeable, Serializable {
                         // 完成二级索引到主表 row key 的映射
                         Map<String, Tuple2<Long, byte[]>> secondaryIndexMap = getSecondaryIndex(trajStr, put._1().getRow());
 
-                        if (config.getPrimary().equals(SPATIAL) || config.getPrimary().equals(ST)) {
+                        if (isSpatialOrStPrimary()) {
                             // 使用原始 shape code 和 quad code
                             long index = trajShape | (quadCode << ((long) config.getAlpha() * (long) config.getBeta()));
                             // ===========================================================
@@ -280,7 +306,7 @@ public class Loader implements Closeable, Serializable {
 //                System.out.println(Arrays.toString(put.getRow()));
                     // TODO: 将索引放入统计表中，利用直方图统计表
                     Map<String, Tuple2<Long, byte[]>> secondaryIndexMap = getSecondaryIndex(v, put.getRow());
-                    if (config.getPrimary().equals(SPATIAL) || config.getPrimary().equals(ST)) {
+                    if (isSpatialOrStPrimary()) {
 //                    System.out.println(indexedPut._2);
                         secondaryIndexMap.put(tableName, new Tuple2<>(indexedPut._2, put.getRow()));
                     }
@@ -289,16 +315,21 @@ public class Loader implements Closeable, Serializable {
                 });
             }
             indexedRDD.persist(StorageLevel.DISK_ONLY());
-            if (config.getPrimary().equals(SPATIAL) || config.getPrimary().equals(ST)) {
+            long mainTableBytes = sumPrimaryTableBytes(indexedRDD);
+            long shapeCount = NOT_APPLICABLE;
+            long indexTableBytes = 0L;
+            if (isSpatialOrStPrimary()) {
                 // v._2().get(tableName)._1: origin_index
                 // v._2().get(tableName)._2: encoded_order
-                indexedRDD
+                JavaPairRDD<Long, Tuple2<Integer, byte[]>> shapeEntryRDD = indexedRDD
                         // (origin_index, (1, encoded_order))
                         .mapToPair(v -> new Tuple2<>(v._2().get(tableName)._1, new Tuple2<>(1, v._2().get(tableName)._2)))
                         // (count, encoded_order)
                         .reduceByKey((v1, v2) -> new Tuple2<>(v1._1() + v2._1, v1._2))
-//                        .repartition(100)
-                        .foreachPartition(v -> {
+                        .persist(StorageLevel.DISK_ONLY());
+                shapeCount = shapeEntryRDD.count();
+                indexTableBytes = shapeCount * 16L;
+                shapeEntryRDD.foreachPartition(v -> {
                             int size = 0;
                             Jedis jedis = new Jedis(config.getRedisHost(), 6379, 60000);
                             Pipeline pipelined = jedis.pipelined();
@@ -329,6 +360,7 @@ public class Loader implements Closeable, Serializable {
                             pipelined.close();
                             jedis.close();
                         });
+                shapeEntryRDD.unpersist(false);
             }
 
             // 使用 saveAsHadoopDataset 模式存储
@@ -339,14 +371,17 @@ public class Loader implements Closeable, Serializable {
             // storePrimaryTableWithNewAPIHadoopDataset(indexedRDD);
 
             currentTime = System.currentTimeMillis() - currentTime;
-            String path = resultPath + "indexing_time_" + tableName;
-            System.out.println("[Loader.storePrimaryTable] 索引时间文件路径: " + path);
-            FileWriter writer = new FileWriter(path);
-            writer.write("indexing time: " + currentTime);
-            writer.flush();
-            writer.close();
             System.out.println("[Loader.storePrimaryTable] 主表存储完成，耗时: " + currentTime + " ms");
             storeSecondaryTable(indexedRDD);
+            StoreSummary summary = new StoreSummary();
+            summary.trajectoryCount = trajectoryCount;
+            summary.nodeCount = resolveNodeCount();
+            summary.shapeCount = shapeCount;
+            summary.indexingTimeMs = currentTime;
+            summary.mainTableBytes = mainTableBytes;
+            summary.indexTableBytes = indexTableBytes;
+            summary.extraIndexInfoBytes = indexTableBytes;
+            printAndPersistStoreSummary(summary);
             System.out.println("[Loader.storePrimaryTable] 二级索引表存储完成");
         }
     }
@@ -504,7 +539,7 @@ public class Loader implements Closeable, Serializable {
         if (null != config.getShards()) {
             put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_SHARDS), Bytes.toBytes(config.getShards()));
         }
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_PRIMARY), Bytes.toBytes(config.getPrimary().name()));
+        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_PRIMARY), Bytes.toBytes(resolvePrimaryName()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ALPHA), Bytes.toBytes(config.getAlpha()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_RESOLUTION), Bytes.toBytes(config.getResolution()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_BETA), Bytes.toBytes(config.getBeta()));
@@ -516,44 +551,7 @@ public class Loader implements Closeable, Serializable {
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_TSP_ENCODING), Bytes.toBytes(config.getTspEncoding()));
         put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_ORDER_ENCODING_TYPE), Bytes.toBytes(config.getOrderEncodingType()));
         appendIndexMeta(put);
-        if (config.getLetiOrderName() != null && !config.getLetiOrderName().isEmpty()) {
-            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_NAME), Bytes.toBytes(config.getLetiOrderName()));
-        }
-        if (config.getLetiOrderDataset() != null && !config.getLetiOrderDataset().isEmpty()) {
-            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_DATASET), Bytes.toBytes(config.getLetiOrderDataset()));
-        }
-        if (config.getLetiOrderDistribution() != null && !config.getLetiOrderDistribution().isEmpty()) {
-            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_DISTRIBUTION), Bytes.toBytes(config.getLetiOrderDistribution()));
-        }
-        if (config.getLetiOrderVersion() != null && !config.getLetiOrderVersion().isEmpty()) {
-            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_VERSION), Bytes.toBytes(config.getLetiOrderVersion()));
-        }
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ORDER_COUNT), Bytes.toBytes(config.getLetiOrderCount()));
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_ACTIVE_CELLS), Bytes.toBytes(config.getLetiActiveCells()));
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_TOTAL_CELLS), Bytes.toBytes(config.getLetiTotalCells()));
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_MAX_LEVEL), Bytes.toBytes(config.getLetiMaxLevel()));
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_GLOBAL_ALPHA), Bytes.toBytes(config.getLetiGlobalAlpha()));
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_GLOBAL_BETA), Bytes.toBytes(config.getLetiGlobalBeta()));
-        if (config.getLetiOrderBoundary() != null) {
-            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_BOUNDARY_XMIN), Bytes.toBytes(config.getLetiOrderBoundary().getXMin()));
-            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_BOUNDARY_XMAX), Bytes.toBytes(config.getLetiOrderBoundary().getXMax()));
-            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_BOUNDARY_YMIN), Bytes.toBytes(config.getLetiOrderBoundary().getYMin()));
-            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_LETI_BOUNDARY_YMAX), Bytes.toBytes(config.getLetiOrderBoundary().getYMax()));
-        }
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_LMSFC), Bytes.toBytes(config.getIsLMSFC()));
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_THETA_CONFIG), Bytes.toBytes(config.getThetaConfig()));
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_IS_BMTREE), Bytes.toBytes(config.getIsBMTree()));
-        put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_BMTREE_CONFIG_PATH), Bytes.toBytes(config.getBMTreeConfigPath()));
-        // 将int[]转换为字符串存储
-        int[] bitLength = config.getBMTreeBitLength();
-        if (bitLength != null && bitLength.length > 0) {
-            StringBuilder bitLengthStr = new StringBuilder();
-            for (int i = 0; i < bitLength.length; i++) {
-                if (i > 0) bitLengthStr.append(",");
-                bitLengthStr.append(bitLength[i]);
-            }
-            put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_BMTREE_BIT_LENGTH), Bytes.toBytes(bitLengthStr.toString()));
-        }
+
         Envelope envelope = config.getEnvelope();
         if (null != envelope) {
             put.addColumn(Bytes.toBytes(DEFAULT_CF), Bytes.toBytes(META_TABLE_xmin), Bytes.toBytes(envelope.getXMin()));
@@ -563,6 +561,166 @@ public class Loader implements Closeable, Serializable {
         }
 
         hTable.put(put);
+    }
+
+    protected long resolveNodeCount() {
+        if (config.getSpatialIndexKind() == TableConfig.SpatialIndexKind.LETI && config.getLetiActiveCells() > 0) {
+            return config.getLetiActiveCells();
+        }
+        return allNodeCount(config.getResolution());
+    }
+
+    protected long allNodeCount(int resolution) {
+        long total = 0L;
+        long nodesAtLevel = 1L;
+        for (int level = 0; level <= resolution; level++) {
+            total += nodesAtLevel;
+            if (level < resolution) {
+                nodesAtLevel *= 4L;
+            }
+        }
+        return total;
+    }
+
+    protected long sumPrimaryTableBytes(JavaRDD<Tuple3<Put, Map<String, Tuple2<Long, byte[]>>, List<KeyValue>>> indexedRDD) {
+        return indexedRDD.map(v -> estimatePutBytes(v._1())).fold(0L, Long::sum);
+    }
+
+    protected long estimatePutBytes(Put put) {
+        long total = put.getRow() == null ? 0L : put.getRow().length;
+        for (List<Cell> cells : put.getFamilyCellMap().values()) {
+            for (Cell cell : cells) {
+                total += estimateCellBytes(cell);
+            }
+        }
+        return total;
+    }
+
+    protected long estimateCellBytes(Cell cell) {
+        long total = 32L;
+        total += cell.getRowLength();
+        total += cell.getFamilyLength();
+        total += cell.getQualifierLength();
+        total += cell.getValueLength();
+        total += cell.getTagsLength();
+        return total;
+    }
+
+    protected long estimateQualifierBytes(Put put, String qualifierName) {
+        if (put == null || qualifierName == null || qualifierName.isEmpty()) {
+            return 0L;
+        }
+        byte[] qualifier = Bytes.toBytes(qualifierName);
+        long total = 0L;
+        for (List<Cell> cells : put.getFamilyCellMap().values()) {
+            for (Cell cell : cells) {
+                if (Bytes.equals(CellUtil.cloneQualifier(cell), qualifier)) {
+                    total += estimateCellBytes(cell);
+                }
+            }
+        }
+        return total;
+    }
+
+    protected long sumQualifierBytes(JavaRDD<Tuple3<Put, Map<String, Tuple2<Long, byte[]>>, List<KeyValue>>> indexedRDD,
+                                     String qualifierName) {
+        return indexedRDD.map(v -> estimateQualifierBytes(v._1(), qualifierName)).fold(0L, Long::sum);
+    }
+
+    protected void printAndPersistStoreSummary(StoreSummary summary) throws IOException {
+        long totalBytes = summary.mainTableBytes + summary.indexTableBytes;
+        lastStoreSummary = summary;
+        System.out.println("================================================================================");
+        System.out.println("Store Summary");
+        System.out.println("================================================================================");
+        System.out.println("Trajectory Count : " + summary.trajectoryCount);
+        System.out.println("Node Count       : " + summary.nodeCount);
+        System.out.println("Shape Count      : " + formatCount(summary.shapeCount));
+        System.out.println("Build Time (ms)  : " + summary.indexingTimeMs);
+        System.out.println("Main Table Size  : " + humanReadableBytes(summary.mainTableBytes));
+        System.out.println("Index Table Size : " + humanReadableBytes(summary.indexTableBytes));
+        System.out.println("Extra Index Info : " + humanReadableBytes(summary.extraIndexInfoBytes));
+        System.out.println("Total Size       : " + humanReadableBytes(totalBytes));
+        if (summary.note != null && !summary.note.isEmpty()) {
+            System.out.println("Note             : " + summary.note);
+        }
+        System.out.println("================================================================================");
+
+        java.nio.file.Path summaryDir = (resultPath == null || resultPath.trim().isEmpty())
+                ? Paths.get(".")
+                : Paths.get(resultPath.trim());
+        Files.createDirectories(summaryDir);
+        java.nio.file.Path summaryPath = summaryDir.resolve("store_summary_" + tableName + ".txt");
+        try (FileWriter writer = new FileWriter(summaryPath.toFile())) {
+            writer.write("trajectoryCount=" + summary.trajectoryCount + System.lineSeparator());
+            writer.write("nodeCount=" + summary.nodeCount + System.lineSeparator());
+            writer.write("shapeCount=" + formatCount(summary.shapeCount) + System.lineSeparator());
+            writer.write("buildTimeMs=" + summary.indexingTimeMs + System.lineSeparator());
+            writer.write("mainTableBytes=" + summary.mainTableBytes + System.lineSeparator());
+            writer.write("indexTableBytes=" + summary.indexTableBytes + System.lineSeparator());
+            writer.write("extraIndexInfoBytes=" + summary.extraIndexInfoBytes + System.lineSeparator());
+            writer.write("totalBytes=" + totalBytes + System.lineSeparator());
+            if (summary.note != null && !summary.note.isEmpty()) {
+                writer.write("note=" + summary.note + System.lineSeparator());
+            }
+        }
+        System.out.println("Store Summary File : " + summaryPath);
+    }
+
+    private static String resolveConfiguredTableName(TableConfig config) {
+        if (config == null) {
+            return null;
+        }
+        try {
+            Field field = TableConfig.class.getDeclaredField("tableName");
+            field.setAccessible(true);
+            Object value = field.get(config);
+            return value == null ? null : value.toString();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to resolve tableName from TableConfig", e);
+        }
+    }
+
+    private Object resolvePrimaryValue() {
+        try {
+            Field field = TableConfig.class.getDeclaredField("primary");
+            field.setAccessible(true);
+            return field.get(config);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to resolve primary index from TableConfig", e);
+        }
+    }
+
+    private boolean isSpatialPrimaryOnly() {
+        return SPATIAL.equals(resolvePrimaryValue());
+    }
+
+    private boolean isSpatialOrStPrimary() {
+        Object primary = resolvePrimaryValue();
+        return SPATIAL.equals(primary) || ST.equals(primary);
+    }
+
+    private String resolvePrimaryName() {
+        Object primary = resolvePrimaryValue();
+        return primary == null ? "" : primary.toString();
+    }
+
+    protected String formatCount(long value) {
+        return value == NOT_APPLICABLE ? "N/A" : Long.toString(value);
+    }
+
+    protected String humanReadableBytes(long bytes) {
+        if (bytes <= 0L) {
+            return "0 B";
+        }
+        final String[] units = {"B", "KB", "MB", "GB", "TB"};
+        double value = bytes;
+        int unitIndex = 0;
+        while (value >= 1024.0 && unitIndex < units.length - 1) {
+            value /= 1024.0;
+            unitIndex++;
+        }
+        return String.format(Locale.ROOT, "%.2f %s (%d B)", value, units[unitIndex], bytes);
     }
 
     @Override

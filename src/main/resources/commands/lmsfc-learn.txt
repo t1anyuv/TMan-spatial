@@ -1,0 +1,27 @@
+mode: lmsfc-learn
+
+roles:
+LMSFCLearningExperimentRunner -> experiment entry
+LMSFCThetaLearner            -> theta learner
+LMSFCOrderFileBuilder        -> order-file builder
+
+java:
+java -cp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar experiments.app.ExperimentApp lmsfc-learn <sample_data_path> <query_workload_path> <theta_output_path> <order_output_path> [base_order_path] [theta_bit_num] [candidate_count] [point_sample_limit] [query_sample_limit] [seed]
+
+spark-submit:
+spark-submit --class experiments.app.ExperimentApp target/TMan-spatial-1.0-SNAPSHOT-jar-with-dependencies.jar lmsfc-learn <sample_data_path> <query_workload_path> <theta_output_path> <order_output_path> [base_order_path] [theta_bit_num] [candidate_count] [point_sample_limit] [query_sample_limit] [seed]
+
+template:
+lmsfc-learn <sample_data_path> <query_workload_path> <theta_output_path> <order_output_path> [base_order_path] [theta_bit_num] [candidate_count] [point_sample_limit] [query_sample_limit] [seed]
+
+arguments:
+<sample_data_path>     raw trajectory data file
+<query_workload_path>  real query workload file
+<theta_output_path>    learned theta output path
+<order_output_path>    learned LMSFC order output path
+[base_order_path]      LETI base order, default leti/<dataset>/param/skewed_r8_min4_a3_b3.json
+[theta_bit_num]        bits per dimension in theta, default 20
+[candidate_count]      number of candidate theta layouts, default 64
+[point_sample_limit]   sampled trajectory point count, default 10000
+[query_sample_limit]   sampled workload query count, default 300
+[seed]                 random seed, default 20260421

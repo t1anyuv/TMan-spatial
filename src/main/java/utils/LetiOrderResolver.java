@@ -14,7 +14,7 @@ public final class LetiOrderResolver {
     public static final String DEFAULT_DATASET = "tdrive";
     public static final String DEFAULT_DISTRIBUTION = "skew";
     public static final String DEFAULT_CANONICAL_PATH =
-            "leti/" + DEFAULT_DATASET + "/" + "default" + "_order_xz_pruned.json";
+            "leti/" + DEFAULT_DATASET + "/" + "default_order.json";
 
     private LetiOrderResolver() {
     }

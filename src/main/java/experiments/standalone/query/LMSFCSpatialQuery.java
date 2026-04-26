@@ -1,0 +1,185 @@
+package experiments.standalone.query;
+
+import com.esri.core.geometry.Envelope;
+import com.esri.core.geometry.Geometry;
+import com.esri.core.geometry.GeometryEngine;
+import com.esri.core.geometry.Operator;
+import com.esri.core.geometry.OperatorFactoryLocal;
+import com.esri.core.geometry.OperatorImportFromWkt;
+import config.TableConfig;
+import filter.SpatialWithSFC;
+import org.apache.hadoop.hbase.filter.FilterBase;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * LMSFC索引空间查询实验程序
+ * <p>
+ * 使用LMSFC (Linearized Multi-Scale Space-Filling Curve) 索引执行空间范围查询
+ * <p>
+ * 命令行参数：
+ * [0] tableName - HBase表名
+ * [1] queryConditions - 查询条件（分号分隔），每个条件格式为 "xmin,ymin,xmax,ymax"
+ * [2] resultPath - 结果输出路径（CSV文件）
+ * <p>
+ * 查询条件格式：
+ * - 单个查询: "116.1,39.6,116.5,40.0"
+ * - 多个查询: "116.1,39.6,116.5,40.0;116.2,39.7,116.6,40.1;..."
+ * <p>
+ * 输出结果：
+ * - CSV文件包含查询性能统计信息：
+ * - time: 查询执行时间（毫秒）
+ * - indexRanges: 索引范围数量
+ * - candidates: 候选结果数量（过滤前）
+ * - finalSize: 最终结果数量（过滤后）
+ * - 每个指标包含：min, max, avg, median, per70, per80, per90
+ * <p>
+ * 示例：
+ * java experiments.standalone.query.LMSFCSpatialQuery \
+ * lmsfc_table \
+ * "116.1,39.6,116.5,40.0;116.2,39.7,116.6,40.1" \
+ * /results/lmsfc_query_results.csv
+ * <p>
+ * 注意：
+ * - LMSFC索引使用minSFC作为RowKey进行范围查询
+ * - 查询性能取决于θ参数配置和查询窗口大小
+ * - 第一个查询用于预热，不计入统计
+ */
+public class LMSFCSpatialQuery extends SpatialQuery {
+    public static void main(String[] args) throws IOException {
+        if (args.length < 3) {
+            printUsage();
+            System.exit(1);
+        }
+
+        System.out.println("\n" + "================================================================================");
+        System.out.println("LMSFC索引空间查询");
+        System.out.println("================================================================================");
+        System.out.println("索引类型: LMSFC (Linearized Multi-Scale Space-Filling Curve)");
+        System.out.println("查询类型: 空间范围查询（带 maxSFC 过滤优化）");
+        System.out.println("过滤器  : SpatialWithSFC");
+        System.out.println("================================================================================\n");
+
+        LMSFCSpatialQuery stQuery = new LMSFCSpatialQuery();
+        stQuery.executeQuery(args);
+    }
+
+    private static void printUsage() {
+        System.err.println("用法: LMSFCSpatialQuery <tableName> <queryConditions> <resultPath>");
+        System.err.println("\n参数:");
+        System.err.println("  tableName        - HBase表名");
+        System.err.println("  queryConditions  - 查询条件（分号分隔）");
+        System.err.println("                     格式: \"xmin,ymin,xmax,ymax\"");
+        System.err.println("  resultPath       - 结果输出路径（CSV文件）");
+        System.err.println("\n示例:");
+        System.err.println("  LMSFCSpatialQuery lmsfc_table \\");
+        System.err.println("    \"116.1,39.6,116.5,40.0;116.2,39.7,116.6,40.1\" \\");
+        System.err.println("    /results/lmsfc_query.csv");
+    }
+
+    /**
+     * 重写 getFilters 方法，使用 SpatialWithSFC Filter
+     *
+     * @param condition   查询条件字符串（格式：xmin,ymin,xmax,ymax）
+     * @param tableConfig 表配置
+     * @return Filter 列表
+     */
+    @Override
+    public List<FilterBase> getFilters(String condition, TableConfig tableConfig) {
+        // 1. 解析查询条件
+        String[] xy = condition.trim().split(",");
+        Envelope env = new Envelope(
+                Double.parseDouble(xy[0].trim()), // xmin
+                Double.parseDouble(xy[1].trim()), // ymin
+                Double.parseDouble(xy[2].trim()), // xmax
+                Double.parseDouble(xy[3].trim()) // ymax
+        );
+
+        // 2. 验证配置
+        if (tableConfig.getThetaConfig() == null || tableConfig.getThetaConfig().isEmpty()) {
+            throw new IllegalArgumentException("ThetaConfig 不能为空，LMSFC 索引需要 θ 参数配置");
+        }
+
+        if (!tableConfig.isLMSFC()) {
+            System.err.println("[警告] 表配置未标记为 LMSFC 索引，可能导致查询错误");
+        }
+
+        // 3. 创建 LMSFCIndex 实例
+        index.LMSFCIndex lmsfcIndex;
+        if (tableConfig.getEnvelope() != null) {
+            lmsfcIndex = index.LMSFCIndex.apply(
+                    (short) tableConfig.getResolution(),
+                    new scala.Tuple2<>(
+                            tableConfig.getEnvelope().getXMin(),
+                            tableConfig.getEnvelope().getXMax()),
+                    new scala.Tuple2<>(
+                            tableConfig.getEnvelope().getYMin(),
+                            tableConfig.getEnvelope().getYMax()),
+                    tableConfig.getThetaConfig());
+        } else {
+            lmsfcIndex = index.LMSFCIndex.apply(
+                    (short) tableConfig.getResolution(),
+                    new scala.Tuple2<>(-180.0, 180.0),
+                    new scala.Tuple2<>(-90.0, 90.0),
+                    tableConfig.getThetaConfig());
+        }
+
+        // 4. 将查询窗口转换为几何对象
+        String wkt = GeometryEngine.geometryToWkt(env, 0);
+        OperatorImportFromWkt importerWKT = (OperatorImportFromWkt) OperatorFactoryLocal.getInstance()
+                .getOperator(Operator.Type.ImportFromWkt);
+        Geometry queryGeometry = importerWKT.execute(
+                0,
+                Geometry.Type.Polygon,
+                wkt,
+                null);
+        /*
+         * // 5. 计算查询窗口的 minSFC 和 maxSFC
+         * scala.Tuple3<Object, Object, Object> queryIndex =
+         * lmsfcIndex.index(queryGeometry, false);
+         * long queryMinSFC = (long) queryIndex._2();
+         * long queryMaxSFC = (long) queryIndex._3();
+         *
+         * // 打印调试信息
+         * System.out.println(String.format(
+         * "[LMSFCSpatialQuery] 查询窗口: [%.4f, %.4f] - [%.4f, %.4f]",
+         * env.getXMin(), env.getYMin(), env.getXMax(), env.getYMax()
+         * ));
+         * System.out.println(String.format(
+         * "[LMSFCSpatialQuery] SFC 范围: [%d, %d]",
+         * queryMinSFC, queryMaxSFC
+         * ));
+         */
+        // 5. 计算索引范围
+        java.util.List<org.locationtech.sfcurve.IndexRange> ranges = lmsfcIndex.ranges(
+                env.getXMin(), env.getYMin(), env.getXMax(), env.getYMax());
+
+        scala.Tuple3<Object, Object, Object> queryIndex = lmsfcIndex.index(queryGeometry, false);
+        long queryMinSFC = (long) queryIndex._2();
+        long queryMaxSFC = (long) queryIndex._3();
+        if (ranges.isEmpty()) {
+            queryMinSFC = 0L;
+        }
+
+        // 打印调试信息
+        System.out.printf(
+                "[LMSFCSpatialQuery] 查询窗口: [%.4f, %.4f] - [%.4f, %.4f]%n",
+                env.getXMin(), env.getYMin(), env.getXMax(), env.getYMax());
+        System.out.printf(
+                "[LMSFCSpatialQuery] query SFC interval: [%d, %d]%n",
+                queryMinSFC, queryMaxSFC);
+
+        // 6. 创建 SpatialWithSFC Filter
+        SpatialWithSFC spatialFilter = new SpatialWithSFC(
+                wkt,
+                tableConfig.getCompressType().name(),
+                queryMinSFC);
+
+        // 7. 返回 Filter 列表
+        List<FilterBase> filters = new ArrayList<>();
+        filters.add(spatialFilter);
+        return filters;
+    }
+}
