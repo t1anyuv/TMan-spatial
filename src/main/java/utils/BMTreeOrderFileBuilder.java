@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import experiments.common.io.ExperimentPaths;
 
 import java.io.File;
 import java.io.IOException;
@@ -299,12 +300,12 @@ public final class BMTreeOrderFileBuilder {
     }
 
     private static ObjectNode loadRoot(String inputPath) throws IOException {
-        Path localPath = Paths.get(inputPath);
-        if (Files.exists(localPath)) {
-            return (ObjectNode) MAPPER.readTree(localPath.toFile());
+        String normalized = inputPath.trim();
+        if (ExperimentPaths.isDistributedPath(normalized) || Files.exists(Paths.get(normalized))) {
+            return (ObjectNode) MAPPER.readTree(ExperimentPaths.readUtf8String(normalized));
         }
 
-        String resourcePath = inputPath.replace('\\', '/').replaceAll("^/+", "");
+        String resourcePath = normalized.replace('\\', '/').replaceAll("^/+", "");
         try (InputStream stream = BMTreeOrderFileBuilder.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (stream == null) {
                 throw new IOException("Order file not found: " + inputPath);
@@ -476,12 +477,12 @@ public final class BMTreeOrderFileBuilder {
         }
 
         private static List<String> loadLines(String inputPath) throws IOException {
-            Path localPath = Paths.get(inputPath);
-            if (Files.exists(localPath)) {
-                return Files.readAllLines(localPath, StandardCharsets.UTF_8);
+            String normalized = inputPath.trim();
+            if (ExperimentPaths.isDistributedPath(normalized) || Files.exists(Paths.get(normalized))) {
+                return ExperimentPaths.readAllLines(normalized, StandardCharsets.UTF_8);
             }
 
-            String resourcePath = inputPath.replace('\\', '/').replaceAll("^/+", "");
+            String resourcePath = normalized.replace('\\', '/').replaceAll("^/+", "");
             try (InputStream stream = BMTreeOrderFileBuilder.class.getClassLoader().getResourceAsStream(resourcePath)) {
                 if (stream == null) {
                     throw new IOException("BMTree config not found: " + inputPath);

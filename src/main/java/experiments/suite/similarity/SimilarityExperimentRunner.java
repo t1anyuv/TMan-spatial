@@ -6,6 +6,7 @@ import experiments.common.ExperimentDefaults;
 import experiments.common.config.DatasetConfig;
 import experiments.common.config.IndexMethod;
 import experiments.common.io.BenchmarkTableCleaner;
+import experiments.common.io.ExperimentPaths;
 import experiments.common.io.TableBuilder;
 import experiments.standalone.query.TrajectorySimilarityQuerySupport;
 import experiments.suite.similarity.config.SimilarityExperimentConfig;
@@ -23,7 +24,6 @@ import similarity.TrajectorySimilarity;
 import utils.LetiOrderResolver;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -172,7 +172,7 @@ public class SimilarityExperimentRunner {
     }
 
     private List<Trajectory> loadQueryTrajectories(String path, int queryLimit) throws IOException {
-        List<String> lines = Files.readAllLines(Paths.get(path)).stream()
+        List<String> lines = ExperimentPaths.readAllLines(path).stream()
                 .map(String::trim)
                 .filter(line -> !line.isEmpty())
                 .collect(Collectors.toList());

@@ -3,6 +3,7 @@ package experiments.standalone.store;
 import com.esri.core.geometry.Envelope;
 import config.TableConfig;
 import constans.IndexEnum;
+import experiments.common.io.ExperimentPaths;
 import loader.LMSFCLoader;
 import preprocess.compress.IIntegerCompress;
 
@@ -113,12 +114,12 @@ public class LMSFCStoring {
             throw new IllegalArgumentException("thetaPath must not be empty");
         }
 
-        Path localPath = Paths.get(thetaPath.trim());
-        if (Files.exists(localPath)) {
-            return new String(Files.readAllBytes(localPath), StandardCharsets.UTF_8).trim();
+        String normalized = thetaPath.trim();
+        if (ExperimentPaths.isDistributedPath(normalized) || Files.exists(Paths.get(normalized))) {
+            return ExperimentPaths.readUtf8String(normalized).trim();
         }
 
-        String resourcePath = thetaPath.trim().replace('\\', '/').replaceAll("^/+", "");
+        String resourcePath = normalized.replace('\\', '/').replaceAll("^/+", "");
         try (InputStream stream = LMSFCStoring.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (stream == null) {
                 throw new IllegalArgumentException("theta配置文件未找到: " + thetaPath);

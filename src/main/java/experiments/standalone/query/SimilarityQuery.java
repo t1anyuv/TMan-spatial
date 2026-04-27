@@ -1,12 +1,11 @@
 package experiments.standalone.query;
 
 import entity.Trajectory;
+import experiments.common.io.ExperimentPaths;
 import org.apache.hadoop.hbase.util.SortedList;
 import scala.Tuple7;
 import similarity.TrajectorySimilarity;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
@@ -41,7 +40,6 @@ public class SimilarityQuery implements AutoCloseable {
         SortedList<Long> sizeStatistic = new SortedList<>(Long::compare);
 
         try (TrajectorySimilarityQuerySupport support = new TrajectorySimilarityQuerySupport();
-             BufferedReader reader = new BufferedReader(new FileReader(queryTrajectoryFile));
              FileWriter writer = new FileWriter(resultPath)) {
             System.out.println("================================================================================");
             System.out.println("Similarity Query Started");
@@ -59,9 +57,8 @@ public class SimilarityQuery implements AutoCloseable {
             SortedList<Long> rowKeyRangeStatistic = new SortedList<>(Long::compare);
             SortedList<Long> candidatesStatistic = new SortedList<>(Long::compare);
 
-            String line;
             int processedQueries = 0;
-            while ((line = reader.readLine()) != null) {
+            for (String line : ExperimentPaths.readAllLines(queryTrajectoryFile)) {
                 if (processedQueries >= queryLimit) {
                     break;
                 }

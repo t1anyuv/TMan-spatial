@@ -1,5 +1,6 @@
 package utils;
 
+import experiments.common.io.ExperimentPaths;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.locationtech.jts.geom.Envelope;
@@ -380,15 +381,10 @@ public final class BMTreeConfigLearner {
     private static List<RawTrajectorySample> loadTrajectorySamples(String sampleDataPath,
                                                                    int sampleLimit,
                                                                    Random random) throws IOException {
-        Path path = Paths.get(sampleDataPath);
-        if (!Files.exists(path)) {
-            throw new IllegalArgumentException("Trajectory data file not found: " + sampleDataPath);
-        }
-
         List<RawTrajectorySample> samples = new ArrayList<>();
         long seen = 0L;
         int failedLines = 0;
-        for (String line : Files.readAllLines(path, StandardCharsets.UTF_8)) {
+        for (String line : ExperimentPaths.readAllLines(sampleDataPath, StandardCharsets.UTF_8)) {
             String trimmed = line.trim();
             if (trimmed.isEmpty()) {
                 continue;
@@ -435,12 +431,9 @@ public final class BMTreeConfigLearner {
     }
 
     private static List<QueryWindow> loadWorkloadSamples(String queryWorkloadPath, int sampleLimit) throws IOException {
-        Path path = Paths.get(queryWorkloadPath);
-        if (!Files.exists(path)) {
-            throw new IllegalArgumentException("Query workload file not found: " + queryWorkloadPath);
-        }
-
-        List<QueryWindow> windows = queryWorkloadPath.endsWith(".json") ? loadJsonQueries(path) : loadTextQueries(path);
+        List<QueryWindow> windows = queryWorkloadPath.endsWith(".json")
+                ? loadJsonQueries(queryWorkloadPath)
+                : loadTextQueries(queryWorkloadPath);
         if (windows.isEmpty()) {
             return windows;
         }
@@ -456,8 +449,8 @@ public final class BMTreeConfigLearner {
         return sampled;
     }
 
-    private static List<QueryWindow> loadJsonQueries(Path path) throws IOException {
-        String content = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+    private static List<QueryWindow> loadJsonQueries(String path) throws IOException {
+        String content = ExperimentPaths.readUtf8String(path);
         JSONArray jsonArray = new JSONArray(content);
         List<QueryWindow> windows = new ArrayList<>(jsonArray.length());
         for (int i = 0; i < jsonArray.length(); i++) {
@@ -474,9 +467,9 @@ public final class BMTreeConfigLearner {
         return windows;
     }
 
-    private static List<QueryWindow> loadTextQueries(Path path) throws IOException {
+    private static List<QueryWindow> loadTextQueries(String path) throws IOException {
         List<QueryWindow> windows = new ArrayList<>();
-        for (String line : Files.readAllLines(path, StandardCharsets.UTF_8)) {
+        for (String line : ExperimentPaths.readAllLines(path, StandardCharsets.UTF_8)) {
             String trimmed = line.trim();
             if (trimmed.isEmpty()) {
                 continue;

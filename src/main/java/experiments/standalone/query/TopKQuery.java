@@ -1,12 +1,11 @@
 package experiments.standalone.query;
 
 import entity.Trajectory;
+import experiments.common.io.ExperimentPaths;
 import org.apache.hadoop.hbase.util.SortedList;
 import scala.Tuple7;
 import similarity.TrajectorySimilarity;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
@@ -33,7 +32,6 @@ public class TopKQuery implements AutoCloseable {
         SortedList<Long> candidatesStatistic = new SortedList<>(Long::compare);
 
         try (TrajectorySimilarityQuerySupport support = new TrajectorySimilarityQuerySupport();
-             BufferedReader reader = new BufferedReader(new FileReader(queryTrajectoryFile));
              FileWriter writer = new FileWriter(resultPath)) {
             System.out.println("================================================================================");
             System.out.println("Top-K Query Started");
@@ -46,9 +44,8 @@ public class TopKQuery implements AutoCloseable {
             System.out.printf("Result File      : %s%n", resultPath);
             System.out.println("================================================================================");
 
-            String line;
             int queryIndex = 0;
-            while ((line = reader.readLine()) != null) {
+            for (String line : ExperimentPaths.readAllLines(queryTrajectoryFile)) {
                 if (line.trim().isEmpty()) {
                     continue;
                 }

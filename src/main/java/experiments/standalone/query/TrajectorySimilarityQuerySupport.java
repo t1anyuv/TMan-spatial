@@ -515,7 +515,24 @@ public final class TrajectorySimilarityQuerySupport implements Closeable {
 
     @Override
     public void close() throws IOException {
-        connection.close();
+        IOException failure = null;
+        try {
+            queryUtils.close();
+        } catch (IOException e) {
+            failure = e;
+        }
+        try {
+            connection.close();
+        } catch (IOException e) {
+            if (failure == null) {
+                failure = e;
+            } else {
+                failure.addSuppressed(e);
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
     }
 
     public static final class ScoredTrajectory {

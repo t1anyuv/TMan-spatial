@@ -151,8 +151,10 @@ public abstract class BasicQuery {
         String[] queryConditions = args[1].split(";");
         String resultPath = args[2];
 
-        QueryUtils queryUtils = new QueryUtils();
-        TableConfig tableConfig = queryUtils.getTableConfig(table + META_TABLE);
+        TableConfig tableConfig;
+        try (QueryUtils queryUtils = new QueryUtils()) {
+            tableConfig = queryUtils.getTableConfig(table + META_TABLE);
+        }
 
         printHeader("Query Execution Started");
         System.out.printf("Table Name    : %s%n", table);

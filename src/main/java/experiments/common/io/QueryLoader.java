@@ -6,8 +6,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,7 +40,7 @@ public class QueryLoader {
     public List<QueryWindow> loadQueriesFromFile(String filePath) {
         List<QueryWindow> queries = new ArrayList<>();
         try {
-            String content = new String(Files.readAllBytes(Paths.get(filePath)));
+            String content = ExperimentPaths.readUtf8String(filePath);
             JSONArray jsonArray = new JSONArray(content);
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject obj = jsonArray.getJSONObject(i);
@@ -67,7 +66,7 @@ public class QueryLoader {
         String filePath = config.getRangeQueryFilePath();
         List<QueryWindow> queries = new ArrayList<>();
         try {
-            List<String> lines = Files.readAllLines(Paths.get(filePath));
+            List<String> lines = ExperimentPaths.readAllLines(filePath, StandardCharsets.UTF_8);
             for (String line : lines) {
                 line = line.trim();
                 if (line.isEmpty()) continue;

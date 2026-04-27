@@ -10,6 +10,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 import static client.Constants.*;
@@ -18,7 +19,7 @@ import static client.Constants.*;
  * 查询工具类
  * 用于从 HBase 元数据表读取表配置信息
  */
-public class QueryUtils implements Cloneable {
+public class QueryUtils implements Cloneable, Closeable {
     private final Connection connection;
 
     public QueryUtils() throws IOException {
@@ -220,5 +221,10 @@ public class QueryUtils implements Cloneable {
         } catch (CloneNotSupportedException e) {
             throw new AssertionError();
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        connection.close();
     }
 }

@@ -1,14 +1,13 @@
 package experiments.suite.similarity.config;
 
 import experiments.common.config.IndexMethod;
+import experiments.common.io.ExperimentPaths;
 import lombok.Getter;
 import lombok.Setter;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +28,7 @@ public class SimilarityExperimentConfig {
     private int queryLimit = 0;
 
     public static SimilarityExperimentConfig load(Path path) throws IOException {
-        String raw = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+        String raw = ExperimentPaths.readUtf8String(path.toString());
         JSONObject json = new JSONObject(raw);
 
         SimilarityExperimentConfig config = new SimilarityExperimentConfig();

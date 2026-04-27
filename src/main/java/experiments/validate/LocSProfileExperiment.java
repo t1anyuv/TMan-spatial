@@ -1,6 +1,7 @@
 package experiments.validate;
 
 import config.TableConfig;
+import experiments.common.io.ExperimentPaths;
 import experiments.standalone.query.LetiSpatialQuery;
 import experiments.standalone.query.SpatialQuery;
 import org.apache.hadoop.hbase.client.Result;
@@ -135,7 +136,7 @@ public class LocSProfileExperiment {
     }
 
     private List<String> loadQueries(String queryFile, int limit) throws IOException {
-        List<String> lines = Files.readAllLines(Paths.get(queryFile), StandardCharsets.UTF_8);
+        List<String> lines = ExperimentPaths.readAllLines(queryFile, StandardCharsets.UTF_8);
         List<String> queries = new ArrayList<>();
         for (String line : lines) {
             String trimmed = line == null ? "" : line.trim();

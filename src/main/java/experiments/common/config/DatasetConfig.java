@@ -1,12 +1,11 @@
 package experiments.common.config;
 
+import experiments.common.io.ExperimentPaths;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
@@ -37,7 +36,7 @@ public class DatasetConfig {
     private Integer letiAlpha = 2;
     private Integer letiBeta = 2;
     private int minTraj = 4;
-    private int shards = 4;
+    private int shards = 8;
 
     @Getter
     @Setter
@@ -100,7 +99,7 @@ public class DatasetConfig {
     public String getThetaConfigOrDefault() {
         if (thetaConfigPath != null && !thetaConfigPath.isEmpty()) {
             try {
-                return new String(Files.readAllBytes(Paths.get(thetaConfigPath)), StandardCharsets.UTF_8).trim();
+                return ExperimentPaths.readUtf8String(thetaConfigPath).trim();
             } catch (IOException e) {
                 throw new IllegalStateException("Failed to read theta config file: " + thetaConfigPath, e);
             }

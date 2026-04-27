@@ -72,29 +72,31 @@ public class AblationExperimentRunner {
             throw new IllegalStateException("No queries found for ablation experiment");
         }
 
-        queryExecutor.warmup(queries.get(0).toCsvString(), tableName, tableConfig, queryStrategy);
-
         long latencySum = 0L;
         long rkiSum = 0L;
         long ctSum = 0L;
         long finalSum = 0L;
         int countedQueries = 0;
-        for (int i = 1; i < queries.size(); i++) {
-            QueryMetrics metrics = queryExecutor.execute(queries.get(i).toCsvString(), tableName, tableConfig, queryStrategy);
-            latencySum += metrics.getLatencyMs();
-            rkiSum += metrics.getRki();
-            ctSum += metrics.getCt();
-            finalSum += metrics.getFinalCount();
-            countedQueries++;
-        }
+        try (PlannerBackedQueryExecutor.QuerySession session = queryExecutor.openSession(tableName, tableConfig, queryStrategy)) {
+            session.warmup(queries.get(0).toCsvString());
 
-        if (countedQueries == 0) {
-            QueryMetrics metrics = queryExecutor.execute(queries.get(0).toCsvString(), tableName, tableConfig, queryStrategy);
-            latencySum += metrics.getLatencyMs();
-            rkiSum += metrics.getRki();
-            ctSum += metrics.getCt();
-            finalSum += metrics.getFinalCount();
-            countedQueries = 1;
+            for (int i = 1; i < queries.size(); i++) {
+                QueryMetrics metrics = session.execute(queries.get(i).toCsvString());
+                latencySum += metrics.getLatencyMs();
+                rkiSum += metrics.getRki();
+                ctSum += metrics.getCt();
+                finalSum += metrics.getFinalCount();
+                countedQueries++;
+            }
+
+            if (countedQueries == 0) {
+                QueryMetrics metrics = session.execute(queries.get(0).toCsvString());
+                latencySum += metrics.getLatencyMs();
+                rkiSum += metrics.getRki();
+                ctSum += metrics.getCt();
+                finalSum += metrics.getFinalCount();
+                countedQueries = 1;
+            }
         }
 
         return new AblationResultRow(
